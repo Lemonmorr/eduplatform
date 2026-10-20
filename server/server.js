@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { createClient } = require('@libsql/client');
+const { createClient } = require('@libsql/client/web');
 require('dotenv').config();
 
 const app = express();
