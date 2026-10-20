@@ -15,7 +15,6 @@ function getLessonCreatedAt(id, item) {
   return null;
 }
 
-/* ---------- Статистика прохождения теста ---------- */
 function getLessonTestStats(lessonId) {
   const results = Storage.get('test_results', []).filter(r => r.lessonId === lessonId);
   const passed = results.length;
@@ -32,7 +31,6 @@ function getLessonTestStats(lessonId) {
   return { passed, total: memberEmails.size };
 }
 
-/* ---------- Фильтры ---------- */
 function expandFilters() {
   const panel = document.getElementById('filters-panel');
   if (!panel) return;
@@ -66,7 +64,6 @@ function copyLink(id) {
   navigator.clipboard.writeText(url).then(() => showToast('Ссылка скопирована!'));
 }
 
-/* ---------- Рендер списка ---------- */
 function renderLessons() {
   const user = getCurrentUser() || {};
   const lessons = Storage.get('my_lessons', {});
@@ -215,7 +212,6 @@ function renderLessons() {
   });
 }
 
-/* ---------- Экспорт ---------- */
 function exportSingleLesson(id) {
   const lessons = Storage.get('my_lessons', {});
   const lesson = lessons[id];
@@ -244,7 +240,6 @@ function exportSingleLesson(id) {
   showToast('Файл лекции сохранён');
 }
 
-/* ---------- Результаты ---------- */
 function showResults(id, title) {
   currentActiveLessonId = id;
   document.getElementById('modal-title').textContent = `Результаты: ${title}`;
@@ -309,7 +304,6 @@ function renderResultsTable(id) {
   container.innerHTML = html;
 }
 
-/* ---------- Удаление ---------- */
 function askDeleteLesson(id) {
   lessonToDeleteId = id;
   const lessons = Storage.get('my_lessons', {});
@@ -387,7 +381,6 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && typeof renderLessons === 'function') renderLessons();
 });
 
-// НОВЫЙ СЛУШАТЕЛЬ: обновляем список, когда данные долетели с сервера
 window.addEventListener('dataSynced', () => {
   if (typeof renderLessons === 'function') renderLessons();
 });

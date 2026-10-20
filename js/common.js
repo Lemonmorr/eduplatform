@@ -51,14 +51,13 @@ function localTodayISO() {
 const __storageCache = new Map();
 const API_BASE = '/api/kv';
 
-// 1. Синхронизация с сервером при старте
-async function syncWithServer() {
+// 1. Синхронизация с сервером при старте (с 3 попытками, если сервер спит)
+async function syncWithServer(retries = 3) {
   try {
     const res = await fetch('/api/all');
     if (!res.ok) throw new Error('Network response was not ok');
     const data = await res.json();
     
-    // Перезаписываем локальный кэш серверными данными
     for (const [key, value] of Object.entries(data)) {
       if (value !== null) {
         localStorage.setItem(key, JSON.stringify(value));
@@ -66,11 +65,14 @@ async function syncWithServer() {
       }
     }
     console.log('✅ Данные синхронизированы с Turso');
-    
-    // Сообщаем приложению, что данные обновились (чтобы перерисовать каталог)
     window.dispatchEvent(new Event('dataSynced'));
   } catch (e) {
-    console.warn('⚠️ Не удалось подключиться к серверу. Работаем офлайн.', e);
+    if (retries > 0) {
+      console.log(`⏳ Сервер просыпается... Ждем 5 сек. (Попыток: ${retries})`);
+      setTimeout(() => syncWithServer(retries - 1), 5000);
+    } else {
+      console.warn('⚠️ Не удалось подключиться к серверу. Работаем офлайн.', e);
+    }
   }
 }
 
@@ -99,11 +101,9 @@ const Storage = {
 
   set(key, value) {
     try {
-      // 1. Мгновенно сохраняем локально
       localStorage.setItem(key, JSON.stringify(value));
       __storageCache.set(key, value);
 
-      // 2. Отправляем на сервер в фоне
       fetch(`${API_BASE}/${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,13 +122,11 @@ const Storage = {
     try { localStorage.removeItem(key); } catch (e) {}
     __storageCache.delete(key);
     
-    // Удаляем на сервере
     fetch(`${API_BASE}/${key}`, { method: 'DELETE' })
-      .catch(err => console.warn('Ошибка удаления на сервере:', err));
+      .catch(err => console.warn('Ошибка удаления на сервер:', err));
   }
 };
 
-// Слушаем изменения из других вкладок
 window.addEventListener('storage', (e) => {
   if (e.key === null) __storageCache.clear();
   else if (e.key) __storageCache.delete(e.key);
@@ -173,7 +171,7 @@ function cleanupOldViewCounters() {
 }
 
 /* ============================================================
-   МОДАЛЬНЫЕ ОКНА (с фокус-трапом)
+   МОДАЛЬНЫЕ ОКНА
    ============================================================ */
 let __lastFocusedElement = null;
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -244,7 +242,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ============================================================
-   ПОДТВЕРЖДЕНИЕ (стандартное)
+   ПОДТВЕРЖДЕНИЕ
    ============================================================ */
 let __confirmCallback = null;
 

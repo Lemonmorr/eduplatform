@@ -116,7 +116,6 @@ function refreshAuthUI() {
   const firstLetter = user.fio.trim().charAt(0).toUpperCase() || 'U';
   const isAdmin = user.role === 'Администратор';
 
-  // ЕДИНОЕ МЕНЮ ДЛЯ ВСЕХ СТРАНИЦ
   authArea.innerHTML = `
     <div class="profile-wrapper">
       <button class="profile-avatar" id="avatar-btn" onclick="toggleProfileMenu()">${escapeHtml(firstLetter)}</button>
@@ -141,41 +140,6 @@ function refreshAuthUI() {
 function toggleProfileMenu() {
   const dm = document.getElementById('dropdown-menu');
   if (dm) dm.classList.toggle('active');
-}
-
-function openProfileModal() {
-  const user = getCurrentUser() || {};
-  document.getElementById('edit-fio').value = user.fio || '';
-  document.getElementById('edit-email').value = user.email || '';
-  document.getElementById('edit-phone').value = user.phone || '';
-  openModal('profile-modal');
-  toggleProfileMenu();
-}
-function closeProfileModal() { closeModal('profile-modal'); }
-
-function saveProfile() {
-  const user = getCurrentUser();
-  if (!user) return;
-  const newFio   = document.getElementById('edit-fio').value.trim();
-  const newEmail = document.getElementById('edit-email').value.trim();
-  const newPhone = document.getElementById('edit-phone').value.trim();
-  if (!newFio || !newEmail) return;
-
-  const oldEmail = user.email;
-  user.fio   = newFio;
-  user.email = newEmail;
-  user.phone = newPhone;
-  saveCurrentUser(user);
-
-  const users = Storage.get('usersDB', []);
-  const idx = users.findIndex(u => u.email === oldEmail || u.email === newEmail);
-  if (idx !== -1) {
-    users[idx] = { ...users[idx], fio: newFio, email: newEmail, phone: newPhone };
-    Storage.set('usersDB', users);
-  }
-  closeProfileModal();
-  refreshAuthUI();
-  if (typeof renderCatalog === 'function') renderCatalog();
 }
 
 /* ============================================================
@@ -269,51 +233,15 @@ function confirmDeleteUser(index) {
   });
 }
 
-let __currentViewedAuthorEmail = null;
-
-function viewAuthorDetails(email, defaultFio) {
-  const user = getCurrentUser();
-  const isAdmin = user && user.role === 'Администратор';
-  if (!isAdmin) return;
-
-  __currentViewedAuthorEmail = email;
-  const users = Storage.get('usersDB', []);
-  const author = users.find(u => u.email === email || u.fio === defaultFio);
-  const container = document.getElementById('author-info-details');
-  const actions = document.getElementById('author-modal-actions');
-  if (!container || !actions) return;
-
-  if (!author) {
-    container.innerHTML = `<div><strong>ФИО:</strong> ${escapeHtml(defaultFio)}</div><div style="color:#94a3b8;">Учетная запись не найдена.</div>`;
-    actions.innerHTML = `<button type="button" class="btn btn-secondary" onclick="closeAuthorInfoModal()">Закрыть</button>`;
-  } else {
-    const userIndex = users.findIndex(u => u.email === author.email);
-    container.innerHTML = `
-      <div><strong>ФИО:</strong> ${escapeHtml(author.fio)}</div>
-      <div><strong>Email:</strong> ${escapeHtml(author.email)}</div>
-      <div><strong>Телефон:</strong> ${escapeHtml(author.phone || 'Не указан')}</div>
-      <div><strong>Роль:</strong> ${escapeHtml(author.role)}</div>
-      <div><strong>Дата регистрации:</strong> ${author.createdAt || 'Не указана'}</div>
-      <div><strong>Статус:</strong> ${author.isBanned ? '<span style="color:#f87171; font-weight:bold;">Заблокирован</span>' : 'Активен'}</div>
-    `;
-    actions.innerHTML = `
-      <button type="button" class="btn ${author.isBanned ? 'btn-warning' : 'btn-secondary'}" onclick="toggleBanUser(${userIndex}); refreshAuthorModal(${userIndex});">
-        ${author.isBanned ? 'Разбанить' : 'Забанить'}
-      </button>
-      <button type="button" class="btn btn-danger" onclick="closeAuthorInfoModal(); confirmDeleteUser(${userIndex});">Удалить</button>
-      <button type="button" class="btn btn-secondary" onclick="closeAuthorInfoModal()">Закрыть</button>
-    `;
-  }
-  openModal('author-info-modal');
-}
-
-function refreshAuthorModal(userIndex) {
-  const users = Storage.get('usersDB', []);
-  if (users[userIndex]) viewAuthorDetails(users[userIndex].email, users[userIndex].fio);
-}
-
-function closeAuthorInfoModal() { closeModal('author-info-modal'); }
-
 document.addEventListener('DOMContentLoaded', () => {
   refreshAuthUI();
+});
+
+// Обновляем данные, когда сервер просыпается и отдает данные
+window.addEventListener('dataSynced', () => {
+  refreshAuthUI();
+  const adminModal = document.getElementById('admin-modal');
+  if (adminModal && adminModal.style.display === 'flex') {
+    renderAdminUsersList();
+  }
 });

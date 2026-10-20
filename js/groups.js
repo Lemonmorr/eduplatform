@@ -15,7 +15,6 @@ function getLessonsCached() {
 }
 function invalidateLessonsCache() { __lessonsCache = null; }
 
-/* ---------- Генерация кода и id ---------- */
 function generateGroupCode() {
   const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const digits = '23456789';
@@ -55,9 +54,6 @@ function cleanupBrokenLessonIds(group) {
   return group.lessonIds.length !== before;
 }
 
-/* ============================================================
-   РЕНДЕР ГЛАВНОЙ СТРАНИЦЫ
-   ============================================================ */
 function renderGroupsPage() {
   const user = getCurrentUser();
   const listEl = document.getElementById('groups-list');
@@ -132,18 +128,18 @@ function renderGroupsPage() {
     let actionsHtml = '';
     if (isOwner) {
       actionsHtml = `
-        <button class="btn-sm btn-sm-primary" onclick="openGroupDetails('${escapeAttr(g.id)}')">Открыть</button>
-        <button class="btn-sm" onclick="openAssignLessons('${escapeAttr(g.id)}')">📚 Лекции</button>
-        <button class="btn-sm" onclick="openGroupQrModal('${escapeAttr(g.id)}', event)" title="QR-код группы">📱 QR</button>
-        <button class="btn-sm btn-sm-danger" onclick="askDeleteGroup('${escapeAttr(g.id)}')">Удалить</button>
+        <button class="btn-sm btn-sm-primary" data-action="open" data-id="${escapeHtml(g.id)}">Открыть</button>
+        <button class="btn-sm" data-action="assign" data-id="${escapeHtml(g.id)}">📚 Лекции</button>
+        <button class="btn-sm" data-action="qr" data-id="${escapeHtml(g.id)}" title="QR-код группы">📱 QR</button>
+        <button class="btn-sm btn-sm-danger" data-action="delete" data-id="${escapeHtml(g.id)}">Удалить</button>
       `;
     } else if (isMember) {
       actionsHtml = `
-        <button class="btn-sm btn-sm-primary" onclick="openGroupDetails('${escapeAttr(g.id)}')">Открыть</button>
-        <button class="btn-sm" onclick="leaveGroup('${escapeAttr(g.id)}')">Выйти из группы</button>
+        <button class="btn-sm btn-sm-primary" data-action="open" data-id="${escapeHtml(g.id)}">Открыть</button>
+        <button class="btn-sm" data-action="leave" data-id="${escapeHtml(g.id)}">Выйти из группы</button>
       `;
     } else {
-      actionsHtml = `<button class="btn-sm" onclick="openGroupDetails('${escapeAttr(g.id)}')">Открыть</button>`;
+      actionsHtml = `<button class="btn-sm" data-action="open" data-id="${escapeHtml(g.id)}">Открыть</button>`;
     }
 
     card.innerHTML = `
@@ -168,9 +164,24 @@ function renderGroupsPage() {
   });
 }
 
-/* ============================================================
-   СОЗДАНИЕ ГРУППЫ
-   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  const groupsList = document.getElementById('groups-list');
+  if (groupsList) {
+    groupsList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      
+      if (action === 'open') openGroupDetails(id);
+      else if (action === 'assign') openAssignLessons(id);
+      else if (action === 'qr') openGroupQrModal(id, e);
+      else if (action === 'delete') askDeleteGroup(id);
+      else if (action === 'leave') leaveGroup(id);
+    });
+  }
+});
+
 function openCreateGroupModal() {
   document.getElementById('group-name').value = '';
   document.getElementById('group-desc').value = '';
@@ -206,9 +217,6 @@ function createGroup() {
   renderGroupsPage();
 }
 
-/* ============================================================
-   ВСТУПЛЕНИЕ ПО КОДУ
-   ============================================================ */
 function joinGroupByCode() {
   const user = getCurrentUser();
   if (!user) { showToast('Войдите в систему', true); return; }
@@ -232,7 +240,6 @@ function joinGroupByCode() {
 
   saveGroups();
 
-  // XP за вступление в группу
   if (typeof Achievements !== 'undefined' && user.email) {
     Achievements.addXP(15, user.email);
     Achievements.checkAchievements(user.email);
@@ -257,9 +264,6 @@ function leaveGroup(groupId) {
   });
 }
 
-/* ============================================================
-   ДЕТАЛИ ГРУППЫ
-   ============================================================ */
 function openGroupDetails(groupId) {
   const group = groups[groupId];
   if (!group) return;
@@ -315,7 +319,6 @@ function setGroupTab(tab) {
   else if (tab === 'results') renderGroupResultsTab(group, content);
 }
 
-/* ---------- Лекции ---------- */
 function renderGroupLessonsTab(group, content) {
   const allLessons = getLessonsCached();
   const lessonIds = group.lessonIds || [];
@@ -344,7 +347,7 @@ function renderGroupLessonsTab(group, content) {
           <div class="item-meta">ID: ${escapeHtml(id)}</div>
         </div>
         <div class="item-actions">
-          ${isOwner ? `<button class="btn-sm btn-sm-danger" onclick="removeLessonFromGroup('${escapeAttr(group.id)}', '${escapeAttr(id)}')">Убрать</button>` : ''}
+          ${isOwner ? `<button class="btn-sm btn-sm-danger" data-action="remove-lesson" data-group="${escapeHtml(group.id)}" data-id="${escapeHtml(id)}">Убрать</button>` : ''}
         </div>
       `;
       listEl.appendChild(item);
@@ -356,7 +359,7 @@ function renderGroupLessonsTab(group, content) {
       actions += `<a href="lesson.html?id=${encodeURIComponent(id)}" class="btn-sm btn-sm-primary">Открыть</a>`;
     }
     if (isOwner) {
-      actions += ` <button class="btn-sm btn-sm-danger" onclick="removeLessonFromGroup('${escapeAttr(group.id)}', '${escapeAttr(id)}')">Убрать</button>`;
+      actions += ` <button class="btn-sm btn-sm-danger" data-action="remove-lesson" data-group="${escapeHtml(group.id)}" data-id="${escapeHtml(id)}">Убрать</button>`;
     }
     item.innerHTML = `
       <div>
@@ -382,7 +385,6 @@ function removeLessonFromGroup(groupId, lessonId) {
   });
 }
 
-/* ---------- Ученики с прогрессом ---------- */
 function renderGroupMembersTab(group, content) {
   const members = group.members || [];
   const lessonIds = group.lessonIds || [];
@@ -423,7 +425,7 @@ function renderGroupMembersTab(group, content) {
 
     let removeBtn = '';
     if (isOwner) {
-      removeBtn = `<button class="btn-sm btn-sm-danger" onclick="kickMember('${escapeAttr(group.id)}', '${escapeAttr(m.email)}')">Исключить</button>`;
+      removeBtn = `<button class="btn-sm btn-sm-danger" data-action="kick" data-group="${escapeHtml(group.id)}" data-email="${escapeHtml(m.email)}">Исключить</button>`;
     }
 
     item.innerHTML = `
@@ -450,7 +452,6 @@ function kickMember(groupId, email) {
   });
 }
 
-/* ---------- Результаты ---------- */
 function renderGroupResultsTab(group, content) {
   const lessonIds = group.lessonIds || [];
   const members = group.members || [];
@@ -463,9 +464,9 @@ function renderGroupResultsTab(group, content) {
   content.innerHTML = `
     <div class="filter-bar">
       <span style="font-size: 13px; color: var(--text-muted);">Фильтр по дате:</span>
-      <input type="date" id="group-results-date-filter" onchange="applyGroupResultsFilter('${escapeAttr(group.id)}')">
-      <button type="button" class="btn-sm" onclick="resetGroupResultsFilter('${escapeAttr(group.id)}')">Сбросить</button>
-      <button type="button" class="btn-sm btn-sm-danger" style="margin-left:auto;" onclick="resetGroupProgress('${escapeAttr(group.id)}')">Сбросить прогресс</button>
+      <input type="date" id="group-results-date-filter" onchange="applyGroupResultsFilter('${escapeHtml(group.id)}')">
+      <button type="button" class="btn-sm" onclick="resetGroupResultsFilter('${escapeHtml(group.id)}')">Сбросить</button>
+      <button type="button" class="btn-sm btn-sm-danger" style="margin-left:auto;" onclick="resetGroupProgress('${escapeHtml(group.id)}')">Сбросить прогресс</button>
     </div>
     <div id="group-results-table-container"></div>
   `;
@@ -523,7 +524,7 @@ function applyGroupResultsFilter(groupId) {
     if (r.userEmail) {
       const userExists = Storage.get('usersDB', []).some(u => u.email === r.userEmail);
       if (userExists) {
-        studentHtml = `<span class="clickable-student" onclick="openStudentProfile('${escapeAttr(r.userEmail)}', '${escapeAttr(r.fio)}')">${escapeHtml(r.fio)}</span>`;
+        studentHtml = `<span class="clickable-student" data-action="profile" data-email="${escapeHtml(r.userEmail)}" data-fio="${escapeHtml(r.fio)}">${escapeHtml(r.fio)}</span>`;
       }
     }
     html += `
@@ -574,7 +575,6 @@ function resetGroupProgress(groupId) {
   );
 }
 
-/* ---------- Профиль ученика ---------- */
 function openStudentProfile(email, fallbackFio) {
   const usersDB = Storage.get('usersDB', []);
   const user = usersDB.find(u => u.email === email);
@@ -597,9 +597,21 @@ function openStudentProfile(email, fallbackFio) {
   openModal('student-profile-modal');
 }
 
-/* ============================================================
-   НАЗНАЧЕНИЕ ЛЕКЦИЙ
-   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  const tabContent = document.getElementById('group-tab-content');
+  if (tabContent) {
+    tabContent.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      
+      const action = btn.dataset.action;
+      if (action === 'remove-lesson') removeLessonFromGroup(btn.dataset.group, btn.dataset.id);
+      else if (action === 'kick') kickMember(btn.dataset.group, btn.dataset.email);
+      else if (action === 'profile') openStudentProfile(btn.dataset.email, btn.dataset.fio);
+    });
+  }
+});
+
 function openAssignLessons(groupId) {
   const group = groups[groupId];
   if (!group) { showToast('Группа не найдена', true); return; }
@@ -670,9 +682,6 @@ function saveAssignedLessons() {
   renderGroupsPage();
 }
 
-/* ============================================================
-   УДАЛЕНИЕ ГРУППЫ
-   ============================================================ */
 function askDeleteGroup(groupId) {
   const group = groups[groupId];
   if (!group) return;
@@ -684,9 +693,6 @@ function askDeleteGroup(groupId) {
   });
 }
 
-/* ============================================================
-   QR-КОД ГРУППЫ
-   ============================================================ */
 function openGroupQrModal(groupId, event) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
   const group = groups[groupId];
@@ -708,9 +714,6 @@ function copyGroupQrLink() {
   navigator.clipboard.writeText(groupQrCurrentUrl).then(() => showToast('Ссылка скопирована!'));
 }
 
-/* ============================================================
-   ИНИЦИАЛИЗАЦИЯ
-   ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
   loadGroups();
   renderGroupsPage();
@@ -727,4 +730,9 @@ document.addEventListener('DOMContentLoaded', () => {
     codeInput.value = joinParam.toUpperCase();
     setTimeout(() => codeInput.focus(), 200);
   }
+});
+
+window.addEventListener('dataSynced', () => {
+  loadGroups();
+  renderGroupsPage();
 });
