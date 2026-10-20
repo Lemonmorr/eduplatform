@@ -173,10 +173,9 @@ function renderLessons() {
       defaultLabel: 'Просмотр'
     });
 
-    // Дедлайн
     let deadlineHtml = '';
     if (item.hasTest && item.deadline) {
-      const today = localTodayISO(); // Используем локальную дату
+      const today = localTodayISO();
       const expired = today > item.deadline;
       deadlineHtml = `<span class="lesson-deadline ${expired ? 'expired' : ''}">⏰ ${formatDate(item.deadline)}${expired ? ' (просрочен)' : ''}</span>`;
     }
@@ -386,4 +385,9 @@ window.addEventListener('pageshow', (event) => {
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && typeof renderLessons === 'function') renderLessons();
+});
+
+// НОВЫЙ СЛУШАТЕЛЬ: обновляем список, когда данные долетели с сервера
+window.addEventListener('dataSynced', () => {
+  if (typeof renderLessons === 'function') renderLessons();
 });

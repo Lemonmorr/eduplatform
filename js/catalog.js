@@ -161,7 +161,6 @@ function renderSubjectsBar(validKeys) {
   if (subjects.size === 0) { bar.innerHTML = ''; return; }
   const arr = Array.from(subjects.entries()).sort((a, b) => a[0].localeCompare(b[0], 'ru'));
   
-  // Используем data-атрибуты вместо inline onclick
   let html = `<span class="subject-chip ${subjectFilter === '' ? 'active' : ''}" data-subject="">Все предметы <span class="chip-count">${validKeys.length}</span></span>`;
   arr.forEach(([subj, count]) => {
     html += `<span class="subject-chip ${subjectFilter === subj ? 'active' : ''}" data-subject="${escapeHtml(subj)}">${escapeHtml(subj)} <span class="chip-count">${count}</span></span>`;
@@ -339,7 +338,6 @@ function renderCatalog() {
       `<span class="card-tag" data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</span>`
     ).join('');
 
-    // Безопасное описание
     const descText = item.desc || stripHtmlToPlain(item.content) || 'Без описания...';
 
     const card = document.createElement('div');
@@ -379,28 +377,24 @@ function renderCatalog() {
   });
 }
 
-// Делегирование событий каталога
 document.addEventListener('DOMContentLoaded', () => {
   renderCatalog();
 
   const catalogContainer = document.getElementById('catalog-container');
   if (catalogContainer) {
     catalogContainer.addEventListener('click', (e) => {
-      // Клик по автору (для админа)
       const authorEl = e.target.closest('[data-author-email]');
       if (authorEl) {
         viewAuthorDetails(authorEl.dataset.authorEmail, authorEl.dataset.authorName);
         return;
       }
       
-      // Клик по тегу
       const tagEl = e.target.closest('.card-tag');
       if (tagEl) {
         setTagFilter(tagEl.dataset.tag);
         return;
       }
 
-      // Клик по кнопкам действий
       const actionBtn = e.target.closest('[data-action]');
       if (!actionBtn) return;
       
@@ -437,4 +431,10 @@ window.addEventListener('pageshow', (event) => {
 });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && typeof renderCatalog === 'function') renderCatalog();
+});
+
+// НОВЫЙ СЛУШАТЕЛЬ: обновляем каталог, когда данные долетели с сервера
+window.addEventListener('dataSynced', () => {
+  console.log('Данные загружены с сервера, обновляем каталог...');
+  if (typeof renderCatalog === 'function') renderCatalog();
 });
