@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Нет подключения — EduPlatform</title> 
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6366f1">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="EduPlatform">
+  <script src="js/theme-init.js"></script>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/pwa.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      text-align: center;
+    }
+    .offline-card {
+      max-width: 460px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 40px 32px;
+    }
+    .offline-icon {
+      font-size: 64px;
+      line-height: 1;
+      margin-bottom: 20px;
+      opacity: 0.7;
+    }
+    .offline-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .offline-text {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .offline-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .offline-actions .btn { min-width: 140px; }
+  </style>
+</head>
+<body>
+
+  <div class="offline-card">
+    <div class="offline-icon">📡</div>
+    <div class="offline-title">Нет подключения</div>
+    <div class="offline-text">
+      Проверьте интернет-соединение. Открытые ранее лекции могут быть доступны из кэша —
+      попробуйте перейти назад.
+    </div>
+    <div class="offline-actions">
+      <button type="button" class="btn btn-primary" onclick="location.reload()">🔄 Повторить</button>
+      <a href="index.html" class="btn btn-secondary">На главную</a>
+    </div>
+  </div>
+
+  <script src="js/pwa.js"></script>
+
+
+</body>
+</html>

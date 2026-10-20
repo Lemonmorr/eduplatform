@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Группы</title>
+  <meta name="theme-color" content="#6366f1">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="EduPlatform">
+  <script src="js/theme-init.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/navbar.css">
+  <link rel="stylesheet" href="css/groups.css">
+  <link rel="stylesheet" href="css/pwa.css">
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="index.html" class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
+      </div>
+      <span class="logo-text">Edu<span>Platform</span></span>
+    </a>
+    <div class="navbar-right">
+      <button type="button" class="theme-toggle" onclick="toggleTheme()" title="Переключить тему" aria-label="Переключить тему">
+        <svg class="icon-sun" viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+      <div id="auth-area"></div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="header-bar">
+      <a href="index.html" class="btn-back" onclick="if (history.length > 1) { history.back(); return false; }">← Вернуться</a>
+      <h2 style="margin: 0;">Группы</h2>
+      <div class="header-actions" id="header-actions"></div>
+    </div>
+
+    <div class="join-box" id="join-box" style="display: none;">
+      <div class="join-box-inner">
+        <div class="join-box-text">
+          <b>Вступить в группу</b>
+          <span>Введите код, который выдал преподаватель</span>
+        </div>
+        <div class="join-box-form">
+          <input type="text" id="join-code-input" placeholder="ABC-123" maxlength="10" autocomplete="off">
+          <button class="btn btn-primary" onclick="joinGroupByCode()">Вступить</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="groups-list"></div>
+  </div>
+
+  <!-- Модалка: создание группы -->
+  <div class="modal-overlay" id="create-group-modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 16px; font-weight: 700;">Создать группу</h3>
+      <div class="form-group">
+        <label for="group-name">Название группы</label>
+        <input type="text" id="group-name" placeholder="Например: Математика 9А" maxlength="60">
+      </div>
+      <div class="form-group">
+        <label for="group-desc">Описание</label>
+        <textarea id="group-desc" rows="3" placeholder="Краткое описание группы..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('create-group-modal')">Отмена</button>
+        <button class="btn btn-primary" onclick="createGroup()">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка: группа (детали) -->
+  <div class="modal-overlay" id="group-details-modal" role="dialog" aria-modal="true">
+    <div class="modal-content" style="max-width: 800px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 id="group-details-title" style="margin: 0; font-weight: 700;">Группа</h3>
+        <button class="btn btn-secondary" onclick="closeModal('group-details-modal')">✕ Закрыть</button>
+      </div>
+      <div class="group-details-info" id="group-details-info"></div>
+      <div class="group-tabs">
+        <button class="group-tab active" id="gtab-lessons" onclick="setGroupTab('lessons')">📚 Лекции</button>
+        <button class="group-tab" id="gtab-members" onclick="setGroupTab('members')">👥 Ученики</button>
+        <button class="group-tab" id="gtab-results" onclick="setGroupTab('results')">📊 Результаты</button>
+      </div>
+      <div id="group-tab-content"></div>
+    </div>
+  </div>
+
+  <!-- Модалка: назначение лекций -->
+  <div class="modal-overlay" id="assign-lessons-modal" role="dialog" aria-modal="true">
+    <div class="modal-content" style="max-width: 600px;">
+      <h3 style="margin-bottom: 16px; font-weight: 700;">Назначить лекции группе</h3>
+      <div id="assign-lessons-list"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('assign-lessons-modal')">Отмена</button>
+        <button class="btn btn-primary" onclick="saveAssignedLessons()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка: профиль ученика -->
+  <div class="modal-overlay" id="student-profile-modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 16px; font-weight: 700;">Профиль ученика</h3>
+      <div id="student-profile-details" style="display: flex; flex-direction: column; gap: 12px; color: var(--text-muted); font-size: 14px;"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('student-profile-modal')">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка: QR-код группы -->
+  <div class="modal-overlay" id="group-qr-modal" role="dialog" aria-modal="true">
+    <div class="modal-content qr-modal-content">
+      <h3>QR-код группы</h3>
+      <div class="qr-lesson-title" id="group-qr-title"></div>
+      <div class="qr-image-wrap">
+        <img id="group-qr-image" src="" alt="QR">
+      </div>
+      <div class="qr-url-text" id="group-qr-url"></div>
+      <div class="modal-actions" style="justify-content: center;">
+        <button type="button" class="btn btn-secondary" onclick="closeGroupQrModal()">Закрыть</button>
+        <button type="button" class="btn btn-primary" onclick="copyGroupQrLink()">Копировать ссылку</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка: подтверждение -->
+  <div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true">
+    <div class="modal-content modal-confirm">
+      <h3 style="margin-bottom: 12px; font-weight: 700; font-size: 1.2rem;">Подтвердите действие</h3>
+      <p id="confirm-message" style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px; line-height: 1.4;"></p>
+      <div class="modal-actions" style="justify-content: center;">
+        <button type="button" class="btn btn-secondary" id="confirm-btn-cancel">Отмена</button>
+        <button type="button" class="btn btn-danger" id="confirm-btn-ok">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="js/pwa.js"></script>
+
+  <script src="js/common.js"></script>
+  <script src="js/sanitize.js"></script>
+  <script src="js/progress.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/achievements.js"></script>
+  <script src="js/groups.js"></script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+/* ============================================================
+   PWA — баннер установки и индикатор офлайн
+   ============================================================ */
+
+.pwa-install-banner {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translate(-50%, 130%);
+  width: calc(100% - 40px);
+  max-width: 480px;
+  background: #1e293b;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  z-index: 2500;
+  opacity: 0;
+  transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.1), opacity 0.25s;
+}
+.pwa-install-banner.visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+.pwa-install-icon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.pwa-install-info { flex: 1; min-width: 0; }
+.pwa-install-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 2px;
+}
+.pwa-install-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+.pwa-install-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.pwa-install-btn-close,
+.pwa-install-btn-go {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+}
+.pwa-install-btn-close {
+  background: rgba(255,255,255,0.06);
+  color: #cbd5e1;
+}
+.pwa-install-btn-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.pwa-install-btn-go {
+  background: #6366f1;
+  color: #fff;
+}
+.pwa-install-btn-go:hover { background: #4f46e5; }
+
+/* Индикатор офлайн */
+.offline-indicator {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(245, 158, 11, 0.95);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  z-index: 2500;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  animation: offlinePulse 1.6s ease-in-out infinite;
+}
+@keyframes offlinePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.75; }
+}
+
+/* Светлая тема */
+html.light-theme .pwa-install-banner {
+  background: #fff;
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+}
+html.light-theme .pwa-install-title { color: #0f172a; }
+html.light-theme .pwa-install-subtitle { color: #64748b; }
+html.light-theme .pwa-install-btn-close {
+  background: rgba(0,0,0,0.05);
+  color: #475569;
+}
+html.light-theme .pwa-install-btn-close:hover { background: rgba(0,0,0,0.1); color: #0f172a; }
+
+@media (max-width: 480px) {
+  .pwa-install-banner {
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+  .pwa-install-actions { width: 100%; }
+  .pwa-install-btn-close,
+  .pwa-install-btn-go { flex: 1; }
+}

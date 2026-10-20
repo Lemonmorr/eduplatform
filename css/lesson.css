@@ -1,0 +1,525 @@
+/* ============================================================
+   LESSON — просмотр лекции
+   ============================================================ */
+
+body { padding-top: 64px; padding-bottom: 30px; }
+
+.container { max-width: 750px; margin: 0 auto; padding: 0 20px 30px; }
+
+.btn-back {
+  display: inline-block;
+  margin: 20px 0 16px;
+  color: #94a3b8;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+.btn-back:hover { color: #818cf8; }
+
+.card {
+  background: #1e293b;
+  padding: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 20px;
+  overflow: hidden;
+  transition: background 0.25s, border-color 0.25s;
+}
+.card.test-card { padding: 28px; }
+
+.lesson-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 28px 28px 0;
+  margin-bottom: 12px;
+}
+.lesson-title { margin: 0; font-size: 1.6rem; font-weight: 800; line-height: 1.3; flex: 1; word-break: break-word; }
+
+.lesson-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-fav {
+  background: transparent;
+  border: 2px solid rgba(255,255,255,0.15);
+  color: #94a3b8;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  padding: 0;
+}
+.btn-fav:hover { border-color: #facc15; color: #facc15; transform: scale(1.1); }
+.btn-fav.active { background: rgba(250, 204, 21, 0.15); border-color: #facc15; color: #facc15; }
+
+.lesson-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 0 28px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+.lesson-subject {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.lesson-views { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ============================================================
+   БЛОКИ ЛЕКЦИИ
+   ============================================================ */
+.lesson-blocks { line-height: 1.7; color: #cbd5e1; padding-top: 8px; }
+
+.block-anchor { position: relative; padding: 0 28px; }
+.block-anchor:last-child { padding-bottom: 28px; }
+
+.block-read-mark {
+  position: absolute;
+  top: 8px;
+  right: 36px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.block-anchor.is-read .block-read-mark { opacity: 1; }
+
+.lesson-text-block {
+  margin-bottom: 18px;
+  font-size: 15.5px;
+  word-break: break-word;
+}
+.lesson-text-block h2 { font-size: 1.4rem; font-weight: 800; margin: 12px 0 8px; line-height: 1.3; }
+.lesson-text-block h3 { font-size: 1.15rem; font-weight: 700; margin: 10px 0 6px; line-height: 1.3; }
+.lesson-text-block p { margin: 6px 0; }
+.lesson-text-block ul, .lesson-text-block ol { margin: 6px 0 6px 22px; }
+.lesson-text-block li { margin: 3px 0; }
+.lesson-text-block a { color: #818cf8; text-decoration: underline; transition: color 0.15s; }
+.lesson-text-block a:hover { color: #a5b4fc; }
+.lesson-text-block b, .lesson-text-block strong { font-weight: 700; }
+.lesson-text-block i, .lesson-text-block em { font-style: italic; }
+.lesson-text-block u { text-decoration: underline; }
+
+.lesson-media-block { margin-bottom: 18px; }
+.lesson-media-block img,
+.lesson-media-block video { max-width: 100%; border-radius: 10px; display: block; background: #0b1120; }
+.lesson-media-block iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; display: block; background: #000; }
+.lesson-media-caption { font-size: 13px; color: #94a3b8; margin-top: 8px; text-align: center; font-style: italic; }
+
+.lesson-file-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 18px;
+  transition: background 0.2s, color 0.2s;
+}
+.lesson-file-block:hover { background: rgba(99, 102, 241, 0.25); color: #a5b4fc; }
+
+/* ============================================================
+   ЗАКРЕПЛЁННЫЙ ПРОГРЕСС-БАР
+   ============================================================ */
+.progress-wrap {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  z-index: 990;
+  background: #172033;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: none;
+}
+.progress-wrap.visible { display: block; }
+.progress-wrap-inner { max-width: 750px; margin: 0 auto; padding: 0 28px; box-sizing: border-box; }
+.progress-label { display: flex; justify-content: flex-start; font-size: 12px; color: #94a3b8; margin-bottom: 6px; font-weight: 600; }
+.progress-label b { color: #818cf8; }
+.progress-track { background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; }
+.progress-fill { background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%); height: 100%; width: 0%; transition: width 0.4s ease; }
+body.has-progress { padding-top: 122px; }
+
+/* ============================================================
+   ПАНЕЛЬКА "ВЕРНУТЬСЯ К ПРОЧТЕНИЮ"
+   ============================================================ */
+.resume-panel {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translate(120%, -50%);
+  width: 320px;
+  background: #1e293b;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-right: none;
+  border-radius: 14px 0 0 14px;
+  padding: 20px 22px;
+  box-shadow: -8px 10px 30px rgba(0, 0, 0, 0.45);
+  z-index: 950;
+  opacity: 0;
+  transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1), opacity 0.3s ease;
+}
+.resume-panel.visible { transform: translate(0, -50%); opacity: 1; }
+.resume-panel::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 14px; bottom: 14px;
+  width: 4px;
+  background: linear-gradient(180deg, #6366f1 0%, #818cf8 100%);
+  border-radius: 0 4px 4px 0;
+}
+.resume-panel-close {
+  position: absolute;
+  top: 10px; right: 12px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  line-height: 1;
+}
+.resume-panel-close:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.resume-panel-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 10px;
+  color: #818cf8;
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+.resume-panel-title { font-size: 14px; font-weight: 700; color: #f8fafc; margin-bottom: 6px; }
+.resume-panel-text { font-size: 13px; color: #cbd5e1; line-height: 1.55; margin-bottom: 16px; }
+.resume-panel-text b { color: #a5b4fc; }
+.resume-panel-actions { display: flex; flex-direction: column; gap: 8px; }
+.btn-resume-go {
+  width: 100%; padding: 10px 14px;
+  background: #6366f1; color: #fff;
+  border: none; border-radius: 8px;
+  font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.btn-resume-go:hover { background: #4f46e5; }
+.btn-resume-cancel {
+  width: 100%; padding: 10px 14px;
+  background: rgba(255,255,255,0.06);
+  color: #cbd5e1;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  font-weight: 600; font-size: 13px; cursor: pointer;
+}
+.btn-resume-cancel:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+/* ============================================================
+   ТЕСТ — базовое
+   ============================================================ */
+.timer { font-weight: bold; color: #f43f5e; margin-bottom: 15px; font-size: 15px; }
+.progress-bar-bg { background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
+.progress-bar-fill { background: #6366f1; height: 100%; width: 0%; transition: width 0.3s; }
+.question-meta { font-size: 14px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.question-title { font-size: 1.25rem; font-weight: 700; color: #f8fafc; margin-top: 0; margin-bottom: 18px; line-height: 1.4; }
+input[type="text"] {
+  width: 100%; padding: 12px; border-radius: 8px;
+  background: #0f172a; border: 1px solid rgba(255,255,255,0.15);
+  color: #fff; box-sizing: border-box; margin-top: 8px; font-size: 15px; outline: none;
+}
+.option-btn {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 14px 16px; margin-top: 10px;
+  background: #0f172a; border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px; color: #fff;
+  text-align: left; cursor: pointer; font-size: 15px;
+  transition: all 0.2s;
+}
+.option-btn:hover { background: rgba(99, 102, 241, 0.15); border-color: #6366f1; }
+.option-btn.selected { background: rgba(99, 102, 241, 0.3); border-color: #818cf8; font-weight: 600; }
+.btn-submit {
+  width: 100%; padding: 14px; margin-top: 20px;
+  border-radius: 10px; border: none;
+  background: #6366f1; color: #fff;
+  font-weight: bold; font-size: 16px; cursor: pointer;
+  text-decoration: none; display: inline-block; text-align: center;
+  transition: background 0.2s;
+}
+.btn-submit:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; }
+.btn-submit:not(:disabled):hover { background: #4f46e5; }
+
+/* ============================================================
+   НОВЫЕ ТИПЫ ВОПРОСОВ
+   ============================================================ */
+
+/* Открытый ответ */
+.open-answer-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  margin-top: 10px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.open-answer-input:focus { border-color: #6366f1; }
+
+/* Соответствие */
+.match-question {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.match-col { display: flex; flex-direction: column; gap: 8px; }
+.match-col-title {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.match-item {
+  padding: 12px 14px;
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  font-size: 14px;
+  color: #e2e8f0;
+}
+.match-item.selectable { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.match-item.selectable:hover { background: rgba(99, 102, 241, 0.15); border-color: #6366f1; }
+.match-item.selected { background: rgba(99, 102, 241, 0.3); border-color: #818cf8; font-weight: 600; }
+.match-item.paired {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+.match-item .pair-badge {
+  display: inline-block;
+  background: #10b981;
+  color: #fff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+/* Сортировка */
+.sort-question { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.sort-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  color: #e2e8f0;
+  font-size: 14px;
+  cursor: grab;
+  user-select: none;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.sort-item:active { cursor: grabbing; }
+.sort-item.dragging { opacity: 0.4; }
+.sort-item.drag-over { border-color: #818cf8; background: rgba(99, 102, 241, 0.15); }
+.sort-item .sort-handle { color: #64748b; font-size: 16px; flex-shrink: 0; }
+.sort-item .sort-pos { display: none; }
+
+/* ============================================================
+   СВЕТЛАЯ ТЕМА
+   ============================================================ */
+html.light-theme .btn-back { color: #64748b; }
+html.light-theme .btn-back:hover { color: #4f46e5; }
+html.light-theme .card { background: #fff; border-color: rgba(0,0,0,0.08); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+html.light-theme .btn-fav { border-color: rgba(0,0,0,0.15); color: #64748b; }
+html.light-theme .btn-fav:hover { border-color: #eab308; color: #eab308; }
+html.light-theme .btn-fav.active { background: rgba(234, 179, 8, 0.15); border-color: #eab308; color: #eab308; }
+html.light-theme .lesson-blocks { color: #334155; }
+html.light-theme .lesson-text-block a { color: #4f46e5; }
+html.light-theme .lesson-text-block a:hover { color: #4338ca; }
+html.light-theme .lesson-media-caption { color: #64748b; }
+html.light-theme .lesson-media-block img,
+html.light-theme .lesson-media-block video { background: #e2e8f0; }
+html.light-theme .progress-wrap { background: #f1f5f9; border-bottom-color: rgba(0,0,0,0.08); }
+html.light-theme .progress-track { background: #e2e8f0; }
+html.light-theme .resume-panel { background: #fff; border-color: rgba(99, 102, 241, 0.35); box-shadow: -8px 10px 30px rgba(0,0,0,0.12); }
+html.light-theme .resume-panel-title { color: #0f172a; }
+html.light-theme .resume-panel-text { color: #475569; }
+html.light-theme .resume-panel-text b { color: #4f46e5; }
+html.light-theme .resume-panel-close:hover { background: rgba(0,0,0,0.06); color: #0f172a; }
+html.light-theme .btn-resume-cancel { background: rgba(0,0,0,0.04); color: #475569; border-color: rgba(0,0,0,0.1); }
+html.light-theme .question-title { color: #0f172a; }
+html.light-theme input[type="text"] { background: #f8fafc; color: #0f172a; border-color: rgba(0,0,0,0.15); }
+html.light-theme .option-btn { background: #f8fafc; color: #0f172a; border-color: rgba(0,0,0,0.15); }
+html.light-theme .option-btn:hover { background: rgba(99, 102, 241, 0.1); border-color: #6366f1; }
+html.light-theme .option-btn.selected { background: rgba(99, 102, 241, 0.2); border-color: #6366f1; }
+html.light-theme .progress-bar-bg { background: #e2e8f0; }
+
+html.light-theme .open-answer-input { background: #f8fafc; color: #0f172a; border-color: rgba(0,0,0,0.15); }
+html.light-theme .match-item { background: #f8fafc; color: #0f172a; border-color: rgba(0,0,0,0.15); }
+html.light-theme .match-item.selectable:hover { background: rgba(99, 102, 241, 0.1); border-color: #6366f1; }
+html.light-theme .match-item.selected { background: rgba(99, 102, 241, 0.2); border-color: #6366f1; }
+html.light-theme .sort-item { background: #f8fafc; color: #0f172a; border-color: rgba(0,0,0,0.15); }
+html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); border-color: #6366f1; }
+
+/* ============================================================
+   МОБИЛЬНАЯ АДАПТАЦИЯ
+   ============================================================ */
+@media (max-width: 768px) {
+  body { padding-top: 60px; padding-bottom: 20px; }
+  body.has-progress { padding-top: 110px; }
+
+  .container { padding: 0 14px 20px; }
+
+  /* Прогресс-бар */
+  .progress-wrap { top: 60px; padding: 8px 0 10px; }
+  .progress-wrap-inner { padding: 0 20px; }
+  .progress-label { font-size: 11px; }
+  .progress-track { height: 6px; }
+
+  /* Карточка лекции */
+  .card { border-radius: 14px; margin-bottom: 16px; }
+
+  .lesson-header-row {
+    flex-direction: column;
+    padding: 20px 18px 0;
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+  .lesson-title { font-size: 1.3rem; line-height: 1.25; }
+  .lesson-header-actions { width: 100%; justify-content: flex-end; gap: 8px; }
+  .btn-fav { width: 40px; height: 40px; font-size: 18px; }
+
+  /* Мета-строка */
+  .lesson-meta-row {
+    padding: 0 18px;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 14px;
+  }
+  .lesson-subject { padding: 3px 8px; font-size: 12px; }
+
+  /* Блоки */
+  .block-anchor { padding: 0 18px; }
+  .block-anchor:last-child { padding-bottom: 22px; }
+
+  .block-read-mark {
+    top: 6px;
+    right: 24px;
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .lesson-text-block {
+    font-size: 15px;
+    margin-bottom: 16px;
+    line-height: 1.65;
+  }
+  .lesson-text-block h2 { font-size: 1.2rem; margin: 10px 0 6px; }
+  .lesson-text-block h3 { font-size: 1.05rem; margin: 8px 0 4px; }
+  .lesson-text-block ul, .lesson-text-block ol { margin-left: 18px; }
+
+  .lesson-media-block iframe { border-radius: 8px; }
+  .lesson-media-caption { font-size: 12px; }
+
+  .lesson-file-block {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  /* Тест */
+  .card.test-card { padding: 20px 18px; }
+  .question-title { font-size: 1.1rem; margin-bottom: 14px; }
+  .option-btn {
+    padding: 12px 14px;
+    font-size: 15px;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .option-btn > span:first-child { flex-shrink: 0; padding-top: 1px; }
+  .open-answer-input { padding: 12px 14px; font-size: 16px; }   /* 16px — чтобы iOS не зумил */
+  input[type="text"] { font-size: 16px; }
+  .btn-submit { padding: 14px; font-size: 15px; }
+  .timer { font-size: 14px; }
+
+  /* Панель resume — снизу, во всю ширину */
+  .resume-panel {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    transform: translateY(120%);
+    border-radius: 16px 16px 0 0;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    border-bottom: none;
+    padding: 20px 20px 24px;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5);
+  }
+  .resume-panel.visible { transform: translateY(0); opacity: 1; }
+  .resume-panel::before {
+    left: 14px; right: 14px; top: 0;
+    width: auto; height: 4px;
+    border-radius: 0 0 4px 4px;
+  }
+  .resume-panel-icon { width: 32px; height: 32px; font-size: 16px; }
+  .resume-panel-title { font-size: 14px; }
+  .resume-panel-text { font-size: 13px; margin-bottom: 14px; }
+
+  /* Соответствие — в одну колонку */
+  .match-question { grid-template-columns: 1fr; gap: 14px; }
+  .match-item { padding: 12px; font-size: 14px; }
+
+  /* Сортировка */
+  .sort-item { padding: 12px; font-size: 14px; }
+}
+
+@media (max-width: 480px) {
+  .container { padding: 0 12px 20px; }
+  .lesson-header-row { padding: 18px 14px 0; }
+  .lesson-title { font-size: 1.15rem; }
+  .lesson-meta-row { padding: 0 14px; font-size: 11px; }
+  .block-anchor { padding: 0 14px; }
+  .card.test-card { padding: 18px 14px; }
+  .question-title { font-size: 1rem; }
+  .option-btn { padding: 11px 12px; font-size: 14px; }
+}

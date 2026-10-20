@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Статистика</title> 
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6366f1">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="EduPlatform">
+  <script src="js/theme-init.js"></script>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/navbar.css">
+  <link rel="stylesheet" href="css/stats.css">
+  <link rel="stylesheet" href="css/pwa.css">
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="index.html" class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
+      </div>
+      <span class="logo-text">Edu<span>Platform</span></span>
+    </a>
+    <div class="navbar-right">
+      <button type="button" class="theme-toggle" onclick="toggleTheme()" title="Переключить тему" aria-label="Переключить тему">
+        <svg class="icon-sun" viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+      <div id="auth-area"></div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="header-bar">
+      <a href="index.html" class="btn-back" onclick="if (history.length > 1) { history.back(); return false; }">← Вернуться</a>
+      <h2 style="margin: 0;">📊 Статистика</h2>
+      <div class="header-actions"></div>
+    </div>
+
+    <div class="stats-grid" id="stats-top"></div>
+
+    <div class="card">
+      <h3 style="margin-top: 0;">Просмотры по дням</h3>
+      <div class="chart-container" id="chart-views"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top: 0;">Топ лекций</h3>
+      <div id="top-lessons"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top: 0;">Успеваемость по тестам</h3>
+      <div id="test-stats"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top: 0;">Активность учеников</h3>
+      <div id="student-activity"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="js/pwa.js"></script>
+
+  <script src="js/common.js"></script>
+  <script src="js/sanitize.js"></script>
+  <script src="js/progress.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/stats.js"></script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Конструктор лекций</title> 
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6366f1">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="EduPlatform">
+  <script src="js/theme-init.js"></script>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/navbar.css">
+  <link rel="stylesheet" href="css/teacher.css">
+  <link rel="stylesheet" href="css/pwa.css">
+  
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1 id="page-title">Создание лекции</h1>
+    <div class="header-right">
+      <button type="button" class="theme-toggle" onclick="toggleTheme()" title="Переключить тему" aria-label="Переключить тему">
+        <svg class="icon-sun" viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="if (history.length > 1) { history.back(); } else { window.location.href = 'index.html'; }">← Вернуться</button>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="lesson-title">Название лекции</label>
+    <input type="text" id="lesson-title" placeholder="Введите название лекции">
+  </div>
+
+  <div class="form-group">
+    <label for="lesson-subject">Предмет / Категория</label>
+    <input type="text" id="lesson-subject" placeholder="Например: Математика, Физика, История...">
+    <div class="subject-suggestions" id="subject-suggestions"></div>
+    <div class="file-hint">По предмету можно фильтровать лекции в каталоге.</div>
+  </div>
+
+  <div class="form-group">
+    <label for="lesson-tags">Теги (через запятую)</label>
+    <input type="text" id="lesson-tags" placeholder="алгебра, 9класс, ОГЭ">
+    <div class="file-hint">Используются для быстрого поиска. Максимум 10 тегов.</div>
+  </div>
+
+  <div class="form-group">
+    <label>Содержание лекции</label>
+    <div class="blocks-editor" id="blocks-editor"></div>
+    <div class="add-block-bar">
+      <span>Добавить блок:</span>
+      <button type="button" class="btn-add-block" onclick="addBlock('text')">Текст</button>
+      <button type="button" class="btn-add-block" onclick="addBlock('media')">Фото / Видео</button>
+      <button type="button" class="btn-add-block" onclick="addBlock('file')">Файл</button>
+    </div>
+  </div>
+
+  <label class="checkbox-group">
+    <input type="checkbox" id="has-test-checkbox" onchange="toggleTestSection()">
+    <span>Добавить тест к лекции</span>
+  </label>
+
+  <div class="test-section" id="test-section">
+    <h2>Настройки теста</h2>
+
+    <div class="form-group" style="max-width: 200px; margin-top: 12px;">
+      <label for="time-limit">Лимит времени (минут)</label>
+      <input type="number" id="time-limit" value="0" min="0" placeholder="0 - без лимита">
+    </div>
+
+    <div class="form-group" style="max-width: 240px; margin-top: 12px;">
+      <label for="test-deadline">Дедлайн теста</label>
+      <input type="date" id="test-deadline">
+      <div class="file-hint">После этой даты тест помечается как просроченный.</div>
+    </div>
+
+    <label class="checkbox-group" style="margin-top: 16px;">
+      <input type="checkbox" id="allow-retakes">
+      <span>Разрешить несколько попыток</span>
+    </label>
+
+    <label style="margin-top: 16px; display: block;">Пороги оценок (% верных ответов):</label>
+    <div class="thresholds-grid">
+      <div><label for="g5-threshold">Оценка «5»</label><input type="number" id="g5-threshold" value="90" min="0" max="100"></div>
+      <div><label for="g4-threshold">Оценка «4»</label><input type="number" id="g4-threshold" value="75" min="0" max="100"></div>
+      <div><label for="g3-threshold">Оценка «3»</label><input type="number" id="g3-threshold" value="50" min="0" max="100"></div>
+    </div>
+
+    <h3 style="margin-top: 24px; margin-bottom: 12px;">Вопросы теста</h3>
+    <div id="questions-container"></div>
+    <button type="button" class="btn btn-secondary" onclick="addQuestion()" style="margin-top: 8px;">+ Добавить вопрос</button>
+  </div>
+
+  <div class="save-info" id="save-info"></div>
+
+  <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+    <button type="button" class="btn btn-success" onclick="saveLesson()">Сохранить лекцию</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="confirm-modal-teacher" role="dialog" aria-modal="true">
+  <div class="modal-content-confirm">
+    <h3>Подтвердите действие</h3>
+    <p id="confirm-text-teacher">Удалить этот блок?</p>
+    <div class="modal-actions-confirm">
+      <button type="button" class="btn-cancel-confirm" id="confirm-cancel-teacher">Отмена</button>
+      <button type="button" class="btn-ok-confirm" id="confirm-ok-teacher">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="draft-modal" role="dialog" aria-modal="true">
+  <div class="modal-content-confirm">
+    <h3>Восстановить черновик?</h3>
+    <p id="draft-modal-info">Найден несохранённый черновик.</p>
+    <div class="modal-actions-confirm">
+      <button type="button" class="btn-cancel-confirm" id="draft-modal-discard">Удалить</button>
+      <button type="button" class="btn-ok-confirm" id="draft-modal-restore">Восстановить</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/pwa.js"></script>
+
+<script src="js/common.js"></script>
+<script src="js/sanitize.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/achievements.js"></script>
+<script src="js/rich-editor.js"></script>
+<script src="js/teacher.js"></script>
+</body>
+</html>

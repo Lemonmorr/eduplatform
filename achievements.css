@@ -1,0 +1,158 @@
+/* ============================================================
+   ACHIEVEMENTS — значки, XP, уровни
+   ============================================================ */
+
+/* ---------- XP-виджет ---------- */
+.xp-widget {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+.xp-widget-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.xp-level-badge {
+  background: #6366f1;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 8px;
+  letter-spacing: 0.5px;
+}
+.xp-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #a5b4fc;
+}
+.xp-bar-track {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.xp-widget-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* ---------- Сетка значков ---------- */
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.achievement-card {
+  position: relative;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 16px 12px;
+  text-align: center;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.achievement-card.locked {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+.achievement-card.unlocked {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%);
+}
+.achievement-card.unlocked:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.6);
+}
+.achievement-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+.achievement-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.achievement-desc {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+.achievement-xp {
+  display: inline-block;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.achievement-date {
+  display: block;
+  font-size: 10px;
+  color: #34d399;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+/* ---------- Компактный виджет XP в навбаре ---------- */
+.navbar-xp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 20px;
+  padding: 4px 10px 4px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #a5b4fc;
+  cursor: default;
+}
+.navbar-xp .navbar-xp-level {
+  background: #6366f1;
+  color: #fff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+/* Светлая тема */
+html.light-theme .xp-widget {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(139, 92, 246, 0.03) 100%);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+html.light-theme .xp-bar-track { background: rgba(0, 0, 0, 0.08); }
+html.light-theme .xp-value { color: #4f46e5; }
+html.light-theme .achievement-card {
+  background: #f8fafc;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+html.light-theme .achievement-card.unlocked {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(139, 92, 246, 0.03) 100%);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+html.light-theme .achievement-title { color: #0f172a; }
+html.light-theme .achievement-xp { background: rgba(99, 102, 241, 0.1); color: #4f46e5; }
+html.light-theme .navbar-xp { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.25); color: #4f46e5; }
