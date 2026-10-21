@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { createClient } = require('@libsql/client/web');
+const { createClient } = require('@libsql/client/web'); // Используем веб-клиент
 require('dotenv').config();
 
 const app = express();
@@ -11,16 +11,8 @@ const db = createClient({
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
-async function initDb() {
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS kv (
-      key   TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    )
-  `);
-  console.log('✅ База данных готова к работе.');
-}
-initDb().catch(console.error);
+// Мы УБРАЛИ автоматическое создание таблицы initDb(), так как оно вызывает ошибку 400
+// Мы создадим таблицу вручную в панели Turso.
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '..')));
@@ -34,6 +26,7 @@ app.get('/api/all', async (req, res) => {
     });
     res.json(data);
   } catch (e) {
+    console.error('DB read error:', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -46,6 +39,7 @@ app.post('/api/kv/:key', async (req, res) => {
     });
     res.json({ ok: true });
   } catch (e) {
+    console.error('DB write error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
@@ -58,6 +52,7 @@ app.delete('/api/kv/:key', async (req, res) => {
     });
     res.json({ ok: true });
   } catch (e) {
+    console.error('DB delete error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
