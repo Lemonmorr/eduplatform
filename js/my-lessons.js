@@ -381,6 +381,8 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && typeof renderLessons === 'function') renderLessons();
 });
 
+// ТОЖЕ САМОЕ: ОБНОВЛЯЕМ СПИСОК, КОГДА СЕРВЕР ОТВЕТИЛ
 window.addEventListener('dataSynced', () => {
+  if (typeof refreshAuthUI === 'function') refreshAuthUI();
   if (typeof renderLessons === 'function') renderLessons();
 });

@@ -51,27 +51,62 @@ function localTodayISO() {
 const __storageCache = new Map();
 const API_BASE = '/api/kv';
 
-// 1. Синхронизация с сервером при старте (с 3 попытками, если сервер спит)
-async function syncWithServer(retries = 3) {
-  try {
-    const res = await fetch('/api/all');
-    if (!res.ok) throw new Error('Network response was not ok');
-    const data = await res.json();
-    
-    for (const [key, value] of Object.entries(data)) {
-      if (value !== null) {
-        localStorage.setItem(key, JSON.stringify(value));
-        __storageCache.set(key, value);
+// Показываем экран загрузки
+function showLoadingScreen() {
+  if (document.getElementById('global-loader')) return;
+  const loader = document.createElement('div');
+  loader.id = 'global-loader';
+  loader.style.cssText = `
+    position: fixed; inset: 0; background: #0f172a; z-index: 9999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff; font-family: system-ui, sans-serif; transition: opacity 0.3s;
+  `;
+  loader.innerHTML = `
+    <div style="width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;"></div>
+    <div style="font-size: 16px; font-weight: 600;">Загрузка данных...</div>
+    <div style="font-size: 13px; color: #94a3b8; margin-top: 8px;">Сервер просыпается, это может занять до 40 секунд</div>
+    <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
+  `;
+  document.body.appendChild(loader);
+}
+
+function hideLoadingScreen() {
+  const loader = document.getElementById('global-loader');
+  if (loader) {
+    loader.style.opacity = '0';
+    setTimeout(() => loader.remove(), 300);
+  }
+}
+
+// 1. Синхронизация с сервером при старте
+async function syncWithServer() {
+  showLoadingScreen();
+  let attempts = 0;
+  
+  while (true) {
+    try {
+      const res = await fetch('/api/all');
+      if (!res.ok) throw new Error('Ошибка сервера: ' + res.status);
+      const data = await res.json();
+      
+      // Записываем всё в локальное хранилище
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== null) {
+          localStorage.setItem(key, JSON.stringify(value));
+          __storageCache.set(key, value);
+        }
       }
-    }
-    console.log('✅ Данные синхронизированы с Turso');
-    window.dispatchEvent(new Event('dataSynced'));
-  } catch (e) {
-    if (retries > 0) {
-      console.log(`⏳ Сервер просыпается... Ждем 5 сек. (Попыток: ${retries})`);
-      setTimeout(() => syncWithServer(retries - 1), 5000);
-    } else {
-      console.warn('⚠️ Не удалось подключиться к серверу. Работаем офлайн.', e);
+      
+      console.log('✅ Данные синхронизированы с Turso');
+      hideLoadingScreen();
+      window.dispatchEvent(new Event('dataSynced'));
+      return; // Успех, выходим из цикла
+      
+    } catch (e) {
+      attempts++;
+      console.log(`⏳ Сервер спит. Попытка ${attempts}...`);
+      // Ждем 5 секунд и пробуем снова
+      await new Promise(r => setTimeout(r, 5000));
     }
   }
 }
@@ -113,7 +148,6 @@ const Storage = {
       return true;
     } catch (e) {
       console.warn('Storage.set error:', key, e);
-      if (typeof showToast === 'function') showToast('Хранилище переполнено. Экспортируйте данные.', true);
       return false;
     }
   },

@@ -1,11 +1,9 @@
 /* ============================================================
    PROFILE — логика страницы профиля
-   (навбар и авторизация рендерятся через auth.js → refreshAuthUI)
    ============================================================ */
 
 let usersDB = [];
 
-/* ---------- Заполнение полей ---------- */
 function updateUI() {
   const user = getCurrentUser();
   if (!user) return;
@@ -26,7 +24,6 @@ function updateUI() {
   document.getElementById('edit-email').value = email;
   document.getElementById('edit-phone').value = phone === 'Не указан' ? '' : phone;
 
-  // XP и значки
   if (typeof Achievements !== 'undefined') {
     Achievements.checkAchievements(user.email);
     Achievements.renderXPWidget('xp-widget-container');
@@ -34,7 +31,6 @@ function updateUI() {
   }
 }
 
-/* ---------- Режимы редактирования ---------- */
 function enableEdit() {
   document.getElementById('view-mode').style.display = 'none';
   document.getElementById('edit-mode').style.display = 'block';
@@ -45,7 +41,6 @@ function disableEdit() {
   document.getElementById('view-mode').style.display = 'block';
 }
 
-/* ---------- Сохранение ---------- */
 function saveProfile() {
   const user = getCurrentUser();
   if (!user) return;
@@ -80,10 +75,6 @@ function saveProfile() {
 
   showToast('Профиль сохранён');
 }
-
-/* ============================================================
-   ЭКСПОРТ / ИМПОРТ ДАННЫХ
-   ============================================================ */
 
 const BACKUP_KEYS = [
   'my_lessons',
@@ -186,7 +177,6 @@ function handleImportFile(input) {
   reader.readAsText(file);
 }
 
-/* ---------- Инициализация ---------- */
 document.addEventListener('DOMContentLoaded', () => {
   const user = getCurrentUser();
   if (!user) {
@@ -195,4 +185,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   usersDB = Storage.get('usersDB', []);
   updateUI();
+});
+
+// Если данные долетели с сервера — обновляем страницу
+window.addEventListener('dataSynced', () => {
+  if (typeof refreshAuthUI === 'function') refreshAuthUI();
+  if (typeof updateUI === 'function') updateUI();
 });

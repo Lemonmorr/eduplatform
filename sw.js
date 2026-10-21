@@ -2,7 +2,7 @@
    SERVICE WORKER — кэширование статики + офлайн-страница
    ============================================================ */
 
-const CACHE_VERSION = 'v1.0.1';
+const CACHE_VERSION = 'v3.0.0'; // Новая версия
 const CACHE_STATIC = `eduplatform-static-${CACHE_VERSION}`;
 const CACHE_DYNAMIC = `eduplatform-dynamic-${CACHE_VERSION}`;
 
@@ -11,8 +11,6 @@ const STATIC_ASSETS = [
   './index.html',
   './offline.html',
   './manifest.json',
-
-  // CSS
   './css/variables.css',
   './css/base.css',
   './css/navbar.css',
@@ -25,8 +23,6 @@ const STATIC_ASSETS = [
   './css/stats.css',
   './css/glossary.css',
   './css/achievements.css',
-
-  // JS ядро
   './js/theme-init.js',
   './js/common.js',
   './js/sanitize.js',
@@ -35,14 +31,11 @@ const STATIC_ASSETS = [
   './js/favorites.js',
   './js/achievements.js',
   './js/glossary.js',
-
-  // Иконки
   './icons/icon-192.svg',
   './icons/icon-512.svg',
   './icons/icon-maskable.svg'
 ];
 
-/* ---------- Install ---------- */
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_STATIC)
@@ -53,7 +46,6 @@ self.addEventListener('install', (event) => {
   );
 });
 
-/* ---------- Activate ---------- */
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
@@ -66,15 +58,17 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-/* ---------- Fetch ---------- */
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Только GET
+  // API запросы не кэшируем
+  if (url.pathname.startsWith('/api/')) {
+    return; 
+  }
+
   if (req.method !== 'GET') return;
 
-  // Пропускаем запросы к сторонним API
   if (url.origin !== location.origin) {
     if (
       url.hostname.includes('cdn.jsdelivr.net') ||
@@ -97,7 +91,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Навигационные запросы (HTML) — network-first
   if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
     event.respondWith(
       fetch(req)
@@ -107,14 +100,12 @@ self.addEventListener('fetch', (event) => {
           return resp;
         })
         .catch(() =>
-          // ИСПОЛЬЗУЕМ ignoreSearch ДЛЯ СТРАНИЦ
           caches.match(req, { ignoreSearch: true }).then(cached => cached || caches.match('./offline.html'))
         )
     );
     return;
   }
 
-  // Остальные статические ресурсы — cache-first
   event.respondWith(
     caches.match(req).then(cached => {
       if (cached) return cached;

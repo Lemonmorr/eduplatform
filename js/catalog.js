@@ -433,8 +433,8 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && typeof renderCatalog === 'function') renderCatalog();
 });
 
-// НОВЫЙ СЛУШАТЕЛЬ: обновляем каталог, когда данные долетели с сервера
+// КОГДА СЕРВЕР ПРОСНУЛСЯ И ДАННЫЕ ПРИШЛИ, ОБНОВЛЯЕМ КАТАЛОГ И ВОССТАНАВЛИВАЕМ АККАУНТ
 window.addEventListener('dataSynced', () => {
-  console.log('Данные загружены с сервера, обновляем каталог...');
+  if (typeof refreshAuthUI === 'function') refreshAuthUI();
   if (typeof renderCatalog === 'function') renderCatalog();
 });

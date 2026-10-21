@@ -20,7 +20,6 @@ function getMyLessonIds(lessons) {
   return Object.keys(lessons);
 }
 
-/* ---------- Метрики ---------- */
 function computeTopMetrics(lessons) {
   const ids = getMyLessonIds(lessons);
   let totalViews = 0;
@@ -79,11 +78,6 @@ function renderTopMetrics(lessons) {
   `;
 }
 
-/* ---------- График просмотров по дням ----------
-   Считаем по test_results (дата сдачи) — приближение.
-   Если есть viewLog в будущем, использовать его.
-   Здесь: количество сдач тестов в день + бонус за уникальных пользователей.
-*/
 function computeViewTimeline(lessons, days = 14) {
   const ids = getMyLessonIds(lessons);
   const results = Storage.get('test_results', []).filter(r => ids.includes(r.lessonId));
@@ -95,7 +89,6 @@ function computeViewTimeline(lessons, days = 14) {
     d.setDate(d.getDate() - i);
     const iso = d.toISOString().split('T')[0];
     const count = results.filter(r => r.isoDate === iso).length;
-    // Плюс просмотры (грубая оценка — реальные счётчики чистятся)
     const viewsCount = Object.keys(localStorage)
       .filter(k => k.startsWith('view_counted_') && k.endsWith('_' + iso))
       .length;
@@ -134,7 +127,6 @@ function renderViewChart(lessons) {
   `;
 }
 
-/* ---------- Топ лекций ---------- */
 function renderTopLessons(lessons) {
   const container = document.getElementById('top-lessons');
   if (!container) return;
@@ -173,7 +165,6 @@ function renderTopLessons(lessons) {
   container.innerHTML = html;
 }
 
-/* ---------- Статистика тестов ---------- */
 function renderTestStats(lessons) {
   const container = document.getElementById('test-stats');
   if (!container) return;
@@ -186,7 +177,6 @@ function renderTestStats(lessons) {
     return;
   }
 
-  // Группируем по лекции
   const byLesson = {};
   results.forEach(r => {
     if (!byLesson[r.lessonId]) byLesson[r.lessonId] = [];
@@ -233,7 +223,6 @@ function renderTestStats(lessons) {
   container.innerHTML = html;
 }
 
-/* ---------- Активность учеников ---------- */
 function renderStudentActivity(lessons) {
   const container = document.getElementById('student-activity');
   if (!container) return;
@@ -246,7 +235,6 @@ function renderStudentActivity(lessons) {
     return;
   }
 
-  // Группируем по пользователю
   const byUser = {};
   results.forEach(r => {
     const key = r.userEmail || r.fio;
@@ -289,7 +277,15 @@ function renderStudentActivity(lessons) {
   container.innerHTML = html;
 }
 
-/* ---------- Инициализация ---------- */
+function renderStatsPage() {
+  const lessons = getMyLessons();
+  renderTopMetrics(lessons);
+  renderViewChart(lessons);
+  renderTopLessons(lessons);
+  renderTestStats(lessons);
+  renderStudentActivity(lessons);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const user = getCurrentUser();
   if (!user) {
@@ -297,10 +293,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  const lessons = getMyLessons();
-  renderTopMetrics(lessons);
-  renderViewChart(lessons);
-  renderTopLessons(lessons);
-  renderTestStats(lessons);
-  renderStudentActivity(lessons);
+  renderStatsPage();
+});
+
+// Когда данные пришли — обновляем всё
+window.addEventListener('dataSynced', () => {
+  if (typeof refreshAuthUI === 'function') refreshAuthUI();
+  if (typeof renderStatsPage === 'function') renderStatsPage();
 });
