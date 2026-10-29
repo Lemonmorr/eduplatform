@@ -6,8 +6,8 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "@libsql/client": "latest",
-    "dotenv": "^16.4.5"
+    "@tursodatabase/serverless": "latest",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
   }
 }

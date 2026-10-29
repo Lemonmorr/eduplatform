@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
-const { createClient } = require('@libsql/client'); // Используем стандартный клиент для Node.js
+// Используем новый официальный драйвер для Turso с режимом совместимости
+const { createClient } = require('@tursodatabase/serverless/compat');
 require('dotenv').config();
 
 const app = express();
@@ -19,7 +20,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
 
 // --- АВТОСОЗДАНИЕ ТАБЛИЦЫ ПРИ СТАРТЕ ---
-// Защищает от ошибки "migration jobs: 400" и гарантирует, что таблица есть
+// Это гарантирует, что таблица будет создана, и обойдет ошибку миграций
 async function initDB() {
   try {
     await db.execute(`
