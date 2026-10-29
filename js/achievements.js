@@ -196,13 +196,19 @@ function renderAchievementsGrid(containerId, email) {
   ACHIEVEMENTS_LIST.forEach(a => {
     const isUnlocked = !!unlocked[a.id];
     const date = isUnlocked ? new Date(unlocked[a.id].unlockedAt).toLocaleDateString('ru-RU') : '';
+
     html += `
       <div class="achievement-card ${isUnlocked ? 'unlocked' : 'locked'}" title="${escapeHtml(a.desc)}">
-        <div class="achievement-icon">${a.icon}</div>
+        <div class="achievement-icon-wrapper">
+          <span class="achievement-icon">${a.icon}</span>
+          ${!isUnlocked ? '<div class="achievement-lock">🔒</div>' : ''}
+        </div>
         <div class="achievement-title">${escapeHtml(a.title)}</div>
         <div class="achievement-desc">${escapeHtml(a.desc)}</div>
-        <div class="achievement-xp">+${a.xp} XP</div>
-        ${isUnlocked ? `<div class="achievement-date">✓ ${date}</div>` : ''}
+        <div class="achievement-footer">
+          <span class="achievement-xp">+${a.xp} XP</span>
+          ${isUnlocked ? `<span class="achievement-date">${date}</span>` : ''}
+        </div>
       </div>
     `;
   });
