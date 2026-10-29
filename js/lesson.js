@@ -28,7 +28,7 @@ if (typeof sanitizeRichHtml !== 'function') {
 function computeScrollPercent() {
   const el = document.scrollingElement || document.documentElement;
   const scrollable = el.scrollHeight - el.clientHeight;
-  if (scrollable <= 0) return 100;
+  if (scrollable <= 0) return 0; // ФИКС БАГА: изменено с 100 на 0
   const pct = (el.scrollTop / scrollable) * 100;
   return Math.min(100, Math.max(0, Math.round(pct)));
 }
@@ -131,13 +131,13 @@ function initReadingProgress() {
 
   let maxScrollPercent = 0;
   const blocksSeen = new Set();
+  let startTime = Date.now(); // ФИКС БАГА: защита от мгновенного прочтения
 
   lastProgress = getReadingProgress(lessonId, getUserKey());
   if (lastProgress) {
     if (Array.isArray(lastProgress.read)) lastProgress.read.forEach(i => blocksSeen.add(i));
-    const oldFullyRead = Array.isArray(lastProgress.read) && lastProgress.read.length >= total;
     const oldScrollDone = typeof lastProgress.scrollPercent === 'number' && lastProgress.scrollPercent >= 100;
-    if (oldFullyRead || oldScrollDone) {
+    if (oldScrollDone) {
       lastProgress = null;
       clearReadingProgress(lessonId, getUserKey());
     } else if (typeof lastProgress.scrollPercent === 'number') {
@@ -168,6 +168,7 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
+    if (Date.now() - startTime < 3000) return; // ФИКС БАГА: ждём 3 секунды
     if (maxScrollPercent <= 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
@@ -179,6 +180,7 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
+    if (Date.now() - startTime < 3000) return; // ФИКС БАГА: не проверяем первые 3 секунды
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -198,20 +200,7 @@ function initReadingProgress() {
     const newPct = computeScrollPercent();
     if (newPct > maxScrollPercent) { maxScrollPercent = newPct; changed = true; }
 
-    const docEl = document.documentElement;
-    const bodyEl = document.body;
-    const scrollH = Math.max(bodyEl.scrollHeight, docEl.scrollHeight);
-    const clientH = docEl.clientHeight || bodyEl.clientHeight || vh;
-    const noScroll = scrollH <= clientH + 20;
-
-    if (noScroll && maxScrollPercent < 100) {
-      maxScrollPercent = 100;
-      blocks.forEach(b => {
-        const idx = parseInt(b.dataset.blockIndex, 10);
-        if (!blocksSeen.has(idx)) { blocksSeen.add(idx); b.classList.add('is-read'); }
-      });
-      changed = true;
-    }
+    // УДАЛЕН БЛОК noScroll (короткие лекции больше не помечаются прочитанными автоматически)
 
     if (changed) {
       currentProgress = {
@@ -428,7 +417,19 @@ function getAttemptNumber(lessonId, userEmail) {
 
 function startTestProcess() {
   const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
-  studentFIO = (currentUser && currentUser.fio) ? currentUser.fio : 'Гость';
+  
+  // ФИКС БАГА: Запрет теста для неавторизованных и без ФИО
+  if (!currentUser) {
+    showToast('Для прохождения теста необходимо авторизоваться.', true);
+    window.location.href = 'index.html';
+    return;
+  }
+  if (!currentUser.fio) {
+    showToast('Пожалуйста, заполните ФИО в профиле.', true);
+    return;
+  }
+
+  studentFIO = currentUser.fio;
   document.getElementById('fio-start-block').style.display = 'none';
   document.getElementById('test-process-block').style.display = 'block';
   startTimer(testItem.timeLimitMinutes || 0);
@@ -826,59 +827,74 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 400);
   }
 
-  const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
-  const testUserNameEl = document.getElementById('test-user-name');
-  if (testUserNameEl) {
-    testUserNameEl.textContent = (currentUser && currentUser.fio) ? currentUser.fio : 'Гость';
-  }
-
   if (item.hasTest && item.questions && item.questions.length > 0) {
     document.getElementById('test-block').style.display = 'block';
-
-    const userEmail = currentUser ? currentUser.email : '';
-    const prevResults = Storage.get('test_results', []).filter(r =>
-      r.lessonId === currentLessonId && r.userEmail === userEmail
-    );
-
-    if (!item.allowRetakes && prevResults.length > 0 && userEmail) {
-      const best = prevResults.reduce((a, b) => (a.percent > b.percent ? a : b));
+    const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+    
+    // ФИКС БАГА: Ограничение доступа к тесту
+    if (!currentUser) {
       document.getElementById('fio-start-block').innerHTML = `
         <h2 style="margin-top: 0;">Тестирование</h2>
-        <p style="color: var(--text-muted);">Вы уже проходили этот тест. Повторное прохождение не разрешено.</p>
-        <div style="padding:16px; background: rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:10px; margin-top:12px; display:inline-block;">
-          <div style="font-size:13px; color:var(--text-muted);">Лучший результат</div>
-          <div style="font-size:24px; font-weight:700; color:var(--accent-light); margin-top:6px;">${best.percent}% — оценка ${best.grade}</div>
-          <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${best.date}</div>
-        </div>
+        <p style="color: var(--text-muted);">Для прохождения теста необходимо авторизоваться.</p>
+        <a href="index.html" class="btn-submit" style="text-decoration: none; display: inline-block;">Войти на главной</a>
       `;
+      document.getElementById('test-process-block').style.display = 'none';
+      document.getElementById('results-container').style.display = 'none';
+    } else if (!currentUser.fio) {
+      document.getElementById('fio-start-block').innerHTML = `
+        <h2 style="margin-top: 0;">Тестирование</h2>
+        <p style="color: var(--text-muted);">Пожалуйста, заполните ФИО в профиле перед прохождением теста.</p>
+        <a href="profile.html" class="btn-submit" style="text-decoration: none; display: inline-block;">Заполнить профиль</a>
+      `;
+      document.getElementById('test-process-block').style.display = 'none';
+      document.getElementById('results-container').style.display = 'none';
     } else {
-      const block = document.getElementById('test-block');
+      const userEmail = currentUser.email;
+      const prevResults = Storage.get('test_results', []).filter(r =>
+        r.lessonId === currentLessonId && r.userEmail === userEmail
+      );
 
-      if (item.deadline) {
-        const today = localTodayISO(); // Используем локальное время!
-        if (today > item.deadline) {
-          const alert = document.createElement('div');
-          alert.style.cssText = 'padding:10px 14px; background: rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); border-radius:8px; color:#f87171; font-weight:600; margin-bottom:16px;';
-          alert.textContent = `⏰ Дедлайн теста истёк: ${formatDate(item.deadline)}. Тест можно пройти, но результат будет помечен как просроченный.`;
-          block.insertBefore(alert, block.firstChild);
-        } else {
+      if (!item.allowRetakes && prevResults.length > 0) {
+        const best = prevResults.reduce((a, b) => (a.percent > b.percent ? a : b));
+        document.getElementById('fio-start-block').innerHTML = `
+          <h2 style="margin-top: 0;">Тестирование</h2>
+          <p style="color: var(--text-muted);">Вы уже проходили этот тест. Повторное прохождение не разрешено.</p>
+          <div style="padding:16px; background: rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:10px; margin-top:12px; display:inline-block;">
+            <div style="font-size:13px; color:var(--text-muted);">Лучший результат</div>
+            <div style="font-size:24px; font-weight:700; color:var(--accent-light); margin-top:6px;">${best.percent}% — оценка ${best.grade}</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${best.date}</div>
+          </div>
+        `;
+      } else {
+        const block = document.getElementById('test-block');
+
+        if (item.deadline) {
+          const today = localTodayISO();
+          if (today > item.deadline) {
+            const alert = document.createElement('div');
+            alert.style.cssText = 'padding:10px 14px; background: rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); border-radius:8px; color:#f87171; font-weight:600; margin-bottom:16px;';
+            alert.textContent = `⏰ Дедлайн теста истёк: ${formatDate(item.deadline)}. Тест можно пройти, но результат будет помечен как просроченный.`;
+            block.insertBefore(alert, block.firstChild);
+          } else {
+            const info = document.createElement('div');
+            info.style.cssText = 'padding:8px 12px; background: rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:8px; color:#fbbf24; font-size:13px; font-weight:600; margin-bottom:16px;';
+            info.textContent = `⏰ Дедлайн: ${formatDate(item.deadline)}`;
+            block.insertBefore(info, block.firstChild);
+          }
+        }
+
+        if (item.allowRetakes && prevResults.length > 0) {
           const info = document.createElement('div');
-          info.style.cssText = 'padding:8px 12px; background: rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:8px; color:#fbbf24; font-size:13px; font-weight:600; margin-bottom:16px;';
-          info.textContent = `⏰ Дедлайн: ${formatDate(item.deadline)}`;
+          info.style.cssText = 'padding:8px 12px; background: rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); border-radius:8px; color:#a5b4fc; font-size:13px; font-weight:600; margin-bottom:16px;';
+          info.textContent = `📝 Следующая попытка: №${prevResults.length + 1}. Прошлых: ${prevResults.length}.`;
           block.insertBefore(info, block.firstChild);
         }
-      }
-
-      if (item.allowRetakes && prevResults.length > 0 && userEmail) {
-        const info = document.createElement('div');
-        info.style.cssText = 'padding:8px 12px; background: rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); border-radius:8px; color:#a5b4fc; font-size:13px; font-weight:600; margin-bottom:16px;';
-        info.textContent = `📝 Следующая попытка: №${prevResults.length + 1}. Прошлых: ${prevResults.length}.`;
-        block.insertBefore(info, block.firstChild);
       }
     }
   }
 
   if (typeof Achievements !== 'undefined') {
+    const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
     if (currentUser && currentUser.email) {
       Achievements.checkAchievements(currentUser.email);
     }

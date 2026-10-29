@@ -32,9 +32,6 @@ function clearReadingProgress(lessonId, email) {
 
 /* ---------- Вычисление состояния ----------
    Возвращает { state: 'unread' | 'progress' | 'done', percent, firstUnread }
-   - state === 'done'    — лекция прочитана (100% / completedAt / все блоки)
-   - state === 'progress'— есть сохранённый прогресс, но не финал
-   - state === 'unread'  — прогресса нет
 */
 function computeReadState(progress) {
   if (!progress || !progress.total) {
@@ -44,6 +41,7 @@ function computeReadState(progress) {
   const scrollPct = (typeof progress.scrollPercent === 'number') ? progress.scrollPercent : null;
   const blocksDone = Array.isArray(progress.read) && progress.read.length >= progress.total;
 
+  // Лекция считается прочитанной, только если доскроллена до конца или прочитаны все блоки
   if (progress.completedAt || (scrollPct !== null && scrollPct >= 100) || blocksDone) {
     return { state: 'done', percent: 100, firstUnread: 0 };
   }

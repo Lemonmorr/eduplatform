@@ -99,8 +99,17 @@ async function syncWithServer() {
       // Записываем всё в локальное хранилище
       for (const [key, value] of Object.entries(data)) {
         if (value !== null) {
-          // ВАЖНО: не сохраняем currentUser, чтобы новые люди не заходили под вами
           if (key === 'currentUser') continue; 
+          
+          // ФИКС БАГА: не загружаем гостевой прогресс с сервера и сливаем с локальным
+          if (key === 'last_reading_progress') {
+            if (value['guest']) delete value['guest'];
+            const local = __storageCache.get(key) || {};
+            const merged = { ...local, ...value }; 
+            __storageCache.set(key, merged);
+            try { localStorage.setItem(key, JSON.stringify(merged)); } catch(e){}
+            continue;
+          }
           
           __storageCache.set(key, value);
           try {
@@ -177,6 +186,15 @@ const Storage = {
 
       // ВАЖНО: не отправляем сессию пользователя на сервер
       if (key === 'currentUser') return true;
+      
+      // ФИКС БАГА: Запрещаем отправлять гостевой прогресс на сервер
+      if (key === 'last_reading_progress') {
+        if (typeof getCurrentUser === 'function' && !getCurrentUser()) return true;
+        if (value && value['guest']) {
+          value = { ...value };
+          delete value['guest'];
+        }
+      }
 
       fetch(`${API_BASE}/${key}`, {
         method: 'POST',
