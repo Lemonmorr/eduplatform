@@ -2,7 +2,7 @@
    SERVICE WORKER — кэширование статики + офлайн-страница
    ============================================================ */
 
-const CACHE_VERSION = 'v3.0.0'; // Новая версия
+const CACHE_VERSION = 'v4.0.0';
 const CACHE_STATIC = `eduplatform-static-${CACHE_VERSION}`;
 const CACHE_DYNAMIC = `eduplatform-dynamic-${CACHE_VERSION}`;
 

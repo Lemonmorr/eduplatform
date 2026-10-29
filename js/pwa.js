@@ -57,17 +57,19 @@
     banner.id = 'pwa-install-banner';
     banner.className = 'pwa-install-banner';
     
-    // Добавлен крестик для отмены
+    // Оборачиваем всё в relative-контейнер для правильного позиционирования крестика
     banner.innerHTML = `
-      <button type="button" class="pwa-install-close-x" onclick="window.__pwaDismissForever()" title="Больше не показывать">✕</button>
-      <div class="pwa-install-icon">📱</div>
-      <div class="pwa-install-info">
-        <div class="pwa-install-title">Установить EduPlatform</div>
-        <div class="pwa-install-subtitle">Открывать как приложение, работать офлайн</div>
-      </div>
-      <div class="pwa-install-actions">
-        <button type="button" class="pwa-install-btn-close" onclick="window.__pwaHideBanner()">Позже</button>
-        <button type="button" class="pwa-install-btn-go" onclick="window.__pwaInstall()">Установить</button>
+      <div class="pwa-banner-inner">
+        <button type="button" class="pwa-install-close-x" onclick="window.__pwaDismissForever()" title="Больше не показывать">✕</button>
+        <div class="pwa-install-icon">📱</div>
+        <div class="pwa-install-info">
+          <div class="pwa-install-title">Установить EduPlatform</div>
+          <div class="pwa-install-subtitle">Открывать как приложение, работать офлайн</div>
+        </div>
+        <div class="pwa-install-actions">
+          <button type="button" class="pwa-install-btn-close" onclick="window.__pwaHideBanner()">Позже</button>
+          <button type="button" class="pwa-install-btn-go" onclick="window.__pwaInstall()">Установить</button>
+        </div>
       </div>
     `;
     document.body.appendChild(banner);
@@ -85,10 +87,10 @@
     setTimeout(() => banner.remove(), 300);
   }
 
-  // Нажатие на "Позже" (скрывает только на текущей странице)
+  // Нажатие на "Позже"
   window.__pwaHideBanner = hideInstallBanner;
 
-  // Нажатие на крестик "Отменить" (скрывает на 30 дней)
+  // Нажатие на крестик "Отменить"
   window.__pwaDismissForever = function() {
     hideInstallBanner();
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
