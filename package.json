@@ -1,5 +1,13 @@
 {
+  "name": "edu-platform",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
-    "@libsql/client": "^0.18.0"
+    "express": "^4.19.2",
+    "@libsql/client": "latest",
+    "dotenv": "^16.4.5"
   }
 }
