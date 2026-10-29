@@ -11,8 +11,6 @@
       navigator.serviceWorker.register('sw.js', { scope: './' })
         .then(reg => {
           console.log('[PWA] SW зарегистрирован:', reg.scope);
-
-          // Проверяем обновления раз в час
           setInterval(() => reg.update(), 60 * 60 * 1000);
         })
         .catch(err => {
@@ -20,7 +18,6 @@
         });
     });
 
-    // Обновление: если есть новый SW — активируем после согласия
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (refreshing) return;
@@ -31,10 +28,18 @@
 
   /* ---------- beforeinstallprompt ---------- */
   let deferredPrompt = null;
+  const PWA_DISMISS_KEY = 'pwa_dismiss_until';
 
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
+
+    // Проверяем, не нажал ли пользователь "Отменить" в прошлый раз (скрываем на 30 дней)
+    const dismissUntil = localStorage.getItem(PWA_DISMISS_KEY);
+    if (dismissUntil && Date.now() < parseInt(dismissUntil)) {
+      return; 
+    }
+
     showInstallBanner();
   });
 
@@ -51,7 +56,10 @@
     const banner = document.createElement('div');
     banner.id = 'pwa-install-banner';
     banner.className = 'pwa-install-banner';
+    
+    // Добавлен крестик для отмены
     banner.innerHTML = `
+      <button type="button" class="pwa-install-close-x" onclick="window.__pwaDismissForever()" title="Больше не показывать">✕</button>
       <div class="pwa-install-icon">📱</div>
       <div class="pwa-install-info">
         <div class="pwa-install-title">Установить EduPlatform</div>
@@ -77,7 +85,16 @@
     setTimeout(() => banner.remove(), 300);
   }
 
+  // Нажатие на "Позже" (скрывает только на текущей странице)
   window.__pwaHideBanner = hideInstallBanner;
+
+  // Нажатие на крестик "Отменить" (скрывает на 30 дней)
+  window.__pwaDismissForever = function() {
+    hideInstallBanner();
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    localStorage.setItem(PWA_DISMISS_KEY, Date.now() + thirtyDays);
+    if (typeof showToast === 'function') showToast('Больше не будем предлагать установку');
+  };
 
   window.__pwaInstall = async function () {
     if (!deferredPrompt) {
