@@ -49,6 +49,7 @@ function localTodayISO() {
    STORAGE — ГИБРИДНОЕ ХРАНИЛИЩЕ (Браузер + Сервер)
    ============================================================ */
 const __storageCache = new Map();
+const __pendingSync = new Map(); // Для сохранения того, что не удалось отправить
 const API_BASE = '/api/kv';
 
 // Показываем экран загрузки
@@ -82,19 +83,41 @@ function hideLoadingScreen() {
 async function syncWithServer() {
   showLoadingScreen();
   let attempts = 0;
-  
-  while (true) {
+  const MAX_ATTEMPTS = 5;
+
+  while (attempts < MAX_ATTEMPTS) {
     try {
-      const res = await fetch('/api/all');
-      if (!res.ok) throw new Error('Ошибка сервера: ' + res.status);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 секунд на попытку
+
+      const res = await fetch('/api/all', { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       
       // Записываем всё в локальное хранилище
       for (const [key, value] of Object.entries(data)) {
         if (value !== null) {
-          localStorage.setItem(key, JSON.stringify(value));
+          // ВАЖНО: не сохраняем currentUser, чтобы новые люди не заходили под вами
+          if (key === 'currentUser') continue; 
+          
           __storageCache.set(key, value);
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+          } catch (e) {
+            console.warn(`Не удалось сохранить ${key} в localStorage. Превышен лимит.`, e);
+          }
         }
+      }
+
+      // Отправляем то, что не ушло в прошлый раз (если есть)
+      for (const [key, value] of __pendingSync) {
+        fetch(`${API_BASE}/${key}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value })
+        }).then(r => { if (r.ok) __pendingSync.delete(key); }).catch(() => {});
       }
       
       console.log('✅ Данные синхронизированы с Turso');
@@ -104,8 +127,21 @@ async function syncWithServer() {
       
     } catch (e) {
       attempts++;
-      console.log(`⏳ Сервер спит. Попытка ${attempts}...`);
-      // Ждем 5 секунд и пробуем снова
+      console.log(`⏳ Сервер спит или недоступен. Попытка ${attempts} из ${MAX_ATTEMPTS}...`);
+      
+      if (attempts >= MAX_ATTEMPTS) {
+        const loader = document.getElementById('global-loader');
+        if (loader) {
+          loader.innerHTML = `
+            <div style="color: #ef4444; text-align: center; padding: 20px;">
+              <div style="font-size: 24px; margin-bottom: 10px;">⚠️ Ошибка загрузки данных</div>
+              <div style="font-size: 14px; margin-bottom: 20px;">Сервер не отвечает. Попробуйте позже.</div>
+              <button onclick="location.reload()" style="padding: 10px 20px; background: #6366f1; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Повторить</button>
+            </div>
+          `;
+        }
+        return;
+      }
       await new Promise(r => setTimeout(r, 5000));
     }
   }
@@ -139,11 +175,19 @@ const Storage = {
       localStorage.setItem(key, JSON.stringify(value));
       __storageCache.set(key, value);
 
+      // ВАЖНО: не отправляем сессию пользователя на сервер
+      if (key === 'currentUser') return true;
+
       fetch(`${API_BASE}/${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value })
-      }).catch(err => console.warn('Ошибка сохранения на сервер:', err));
+      }).then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      }).catch(err => {
+        console.warn('Ошибка сохранения на сервер:', err);
+        __pendingSync.set(key, value); // запомним на потом
+      });
 
       return true;
     } catch (e) {
@@ -156,8 +200,10 @@ const Storage = {
     try { localStorage.removeItem(key); } catch (e) {}
     __storageCache.delete(key);
     
-    fetch(`${API_BASE}/${key}`, { method: 'DELETE' })
-      .catch(err => console.warn('Ошибка удаления на сервер:', err));
+    if (key !== 'currentUser') {
+      fetch(`${API_BASE}/${key}`, { method: 'DELETE' })
+        .catch(err => console.warn('Ошибка удаления на сервер:', err));
+    }
   }
 };
 
