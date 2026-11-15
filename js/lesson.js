@@ -138,7 +138,7 @@ function initReadingProgress() {
   const blocksSeen = new Set();
   let startTime = Date.now(); 
 
-  // ЖЕЛЕЗОБЕТОННЫЙ СБРОС ЧЕРЕЗ URL
+  // СБРОС ЧЕРЕЗ URL (?reset=1)
   const isReset = new URLSearchParams(window.location.search).get('reset') === '1';
   if (isReset) {
     const url = new URL(window.location.href);
@@ -146,7 +146,6 @@ function initReadingProgress() {
     window.history.replaceState({}, '', url.toString());
     
     clearReadingProgress(lessonId, getUserKey());
-    // Записываем 0%, чтобы перебить 100% на сервере
     saveReadingProgress(lessonId, { read: [], total, scrollPercent: 0 }, getUserKey());
     lastProgress = null;
   } else {
@@ -187,7 +186,7 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
-    if (isResetting) return; // Блокируем сохранение при сбросе
+    if (isResetting) return;
     if (maxScrollPercent <= 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
@@ -199,7 +198,7 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
-    if (isResetting) return; // Блокируем обновление при сбросе
+    if (isResetting) return;
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -210,7 +209,6 @@ function initReadingProgress() {
         const idx = parseInt(b.dataset.blockIndex, 10);
         if (!blocksSeen.has(idx)) {
           blocksSeen.add(idx);
-          b.classList.add('is-read');
           changed = true;
         }
       }
@@ -281,7 +279,7 @@ function initReadingProgress() {
   window.addEventListener('resize', scheduleCheck);
 
   window.addEventListener('beforeunload', () => {
-    if (isResetting) return; // Блокируем сохранение 100% при перезагрузке
+    if (isResetting) return;
     if (maxScrollPercent > 0) {
       const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
       if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
@@ -338,6 +336,7 @@ function restoreProgress() {
   if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 800);
 }
 
+// СБРОС: перезагрузка с параметром ?reset=1 (гарантированно очищает прогресс)
 function startFromScratch() {
   isResetting = true;
   const url = new URL(window.location.href);
