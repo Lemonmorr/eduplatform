@@ -37,71 +37,30 @@
   </header>
 
   <div class="container">
-    <a href="index.html" class="btn-back" onclick="if (history.length > 1) { history.back(); return false; }">← Вернуться</a>
+    <div class="header-bar">
+      <a href="index.html" class="btn-back" onclick="if (history.length > 1) { history.back(); return false; }">← Вернуться</a>
+      <h2 style="margin: 0;">Мой профиль</h2>
+      <div class="header-actions"></div>
+    </div>
 
-    <div class="card">
-      <div class="profile-header">
-        <div class="avatar-large" id="avatar-letter">U</div>
+    <!-- Блок с информацией о пользователе -->
+    <div class="profile-info-card" id="profile-info" style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold;" id="profile-avatar">U</div>
         <div>
-          <h2 id="profile-name" style="margin: 0;">Пользователь</h2>
-          <span style="color: var(--accent-light); font-size: 14px;" id="profile-role">Преподаватель</span>
-        </div>
-      </div>
-
-      <div id="view-mode">
-        <div class="info-group">
-          <div class="info-label">Имя пользователя / ФИО</div>
-          <div class="info-value" id="info-name">—</div>
-        </div>
-        <div class="info-group">
-          <div class="info-label">Email</div>
-          <div class="info-value" id="info-email">—</div>
-        </div>
-        <div class="info-group">
-          <div class="info-label">Телефон</div>
-          <div class="info-value" id="info-phone">—</div>
-        </div>
-        <button class="btn-action" onclick="enableEdit()">Редактировать профиль</button>
-      </div>
-
-      <div id="edit-mode" style="display: none;">
-        <div class="info-group">
-          <label class="info-label" for="edit-name">Имя пользователя / ФИО</label>
-          <input type="text" id="edit-name">
-        </div>
-        <div class="info-group">
-          <label class="info-label" for="edit-email">Email</label>
-          <input type="email" id="edit-email">
-        </div>
-        <div class="info-group">
-          <label class="info-label" for="edit-phone">Телефон</label>
-          <input type="tel" id="edit-phone">
-        </div>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn-action" onclick="saveProfile()">Сохранить</button>
-          <button class="btn-action btn-secondary" onclick="disableEdit()">Отмена</button>
+          <h2 style="margin: 0 0 4px 0; font-size: 1.4rem;" id="profile-fio">Загрузка...</h2>
+          <div style="color: var(--text-muted); font-size: 14px;" id="profile-role">Роль</div>
+          <div style="color: var(--text-muted); font-size: 14px; margin-top: 4px;" id="profile-email">Email</div>
         </div>
       </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin-top: 0;">Прогресс и достижения</h3>
-      <div id="xp-widget-container"></div>
-      <div id="achievements-container" style="margin-top: 16px;"></div>
-    </div>
+    <!-- Виджет XP -->
+    <div id="xp-widget-container"></div>
 
-    <div class="card data-card">
-      <h3 class="data-card-title">Данные</h3>
-      <p class="data-card-hint">
-        Экспорт сохранит все лекции, группы, результаты тестов и настройки в один JSON-файл.
-        Это пригодится при переносе на другое устройство или перед очисткой браузера.
-      </p>
-      <div class="data-card-actions">
-        <button class="btn-action" onclick="exportAllData()">⬇ Экспорт данных</button>
-        <button class="btn-action btn-secondary" onclick="document.getElementById('import-input').click()">⬆ Импорт данных</button>
-        <input type="file" id="import-input" accept="application/json,.json" style="display: none;" onchange="handleImportFile(this)">
-      </div>
-    </div>
+    <!-- Достижения -->
+    <h3 style="margin: 24px 0 16px;">Достижения</h3>
+    <div id="achievements-container"></div>
   </div>
 
   <div id="toast"></div>
