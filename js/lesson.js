@@ -9,7 +9,7 @@ let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
 let __xpAwardedForRead = false;
-let isResetting = false; // ЗАЩИТА ОТ СОХРАНЕНИЯ ПРИ СБРОСЕ
+let isResetting = false; // Защита от сохранения при сбросе
 
 if (typeof looksLikeHtml !== 'function') {
   window.looksLikeHtml = function (str) {
@@ -138,7 +138,21 @@ function initReadingProgress() {
   const blocksSeen = new Set();
   let startTime = Date.now(); 
 
-  lastProgress = getReadingProgress(lessonId, getUserKey());
+  // ЖЕЛЕЗОБЕТОННЫЙ СБРОС ЧЕРЕЗ URL
+  const isReset = new URLSearchParams(window.location.search).get('reset') === '1';
+  if (isReset) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('reset');
+    window.history.replaceState({}, '', url.toString());
+    
+    clearReadingProgress(lessonId, getUserKey());
+    // Записываем 0%, чтобы перебить 100% на сервере
+    saveReadingProgress(lessonId, { read: [], total, scrollPercent: 0 }, getUserKey());
+    lastProgress = null;
+  } else {
+    lastProgress = getReadingProgress(lessonId, getUserKey());
+  }
+
   if (lastProgress) {
     if (Array.isArray(lastProgress.read)) lastProgress.read.forEach(i => blocksSeen.add(i));
     const oldScrollDone = typeof lastProgress.scrollPercent === 'number' && lastProgress.scrollPercent >= 100;
@@ -163,7 +177,7 @@ function initReadingProgress() {
     if (blocksSeen.has(idx)) b.classList.add('is-read');
   });
 
-  if (lastProgress && !resumeOffered) {
+  if (lastProgress && !resumeOffered && maxScrollPercent > 0 && maxScrollPercent < 100) {
     resumeOffered = true;
     showResumePanel(lastProgress, total);
   }
@@ -173,7 +187,7 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
-    if (isResetting) return; // БЛОКИРУЕМ СОХРАНЕНИЕ ПРИ СБРОСЕ
+    if (isResetting) return; // Блокируем сохранение при сбросе
     if (maxScrollPercent <= 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
@@ -185,7 +199,7 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
-    if (isResetting) return; // БЛОКИРУЕМ ОБНОВЛЕНИЕ ПРИ СБРОСЕ
+    if (isResetting) return; // Блокируем обновление при сбросе
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -267,7 +281,7 @@ function initReadingProgress() {
   window.addEventListener('resize', scheduleCheck);
 
   window.addEventListener('beforeunload', () => {
-    if (isResetting) return; // БЛОКИРУЕМ СОХРАНЕНИЕ 100% ПРИ ПЕРЕЗАГРУЗКЕ
+    if (isResetting) return; // Блокируем сохранение 100% при перезагрузке
     if (maxScrollPercent > 0) {
       const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
       if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
@@ -324,29 +338,12 @@ function restoreProgress() {
   if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 800);
 }
 
-// ИДЕАЛЬНЫЙ СБРОС: чистим память, убираем хэш и ЖЕСТКО ПЕРЕЗАГРУЖАЕМ страницу
 function startFromScratch() {
-  isResetting = true; 
-  const lessonId = new URLSearchParams(window.location.search).get('id');
-
-  try {
-    const all = JSON.parse(localStorage.getItem('last_reading_progress') || '{}');
-    if (all[getUserKey()] && all[getUserKey()][lessonId]) {
-      delete all[getUserKey()][lessonId];
-      localStorage.setItem('last_reading_progress', JSON.stringify(all));
-    }
-  } catch(e) {}
-
-  clearReadingProgress(lessonId, getUserKey());
-
+  isResetting = true;
   const url = new URL(window.location.href);
   url.hash = '';
-  window.history.replaceState({}, '', url.toString()); // Убираем якорь #block-2 без перезагрузки
-  
-  window.location.reload(); // ПРИНУДИТЕЛЬНАЯ ПЕРЕЗАГРУЗКА
-
-  // Предохранитель: если браузер заблокирует перезагрузку, сбрасываем флаг через секунду
-  setTimeout(() => { isResetting = false; }, 1000);
+  url.searchParams.set('reset', '1');
+  window.location.href = url.toString();
 }
 
 function incrementViews(lessonId) {
