@@ -63,7 +63,6 @@ body { padding-top: 64px; padding-bottom: 30px; }
 .btn-fav:hover { border-color: #facc15; color: #facc15; transform: scale(1.1); }
 .btn-fav.active { background: rgba(250, 204, 21, 0.15); border-color: #facc15; color: #facc15; }
 
-/* Метаданные и ЕДИНАЯ метка "Прочитано" */
 .lesson-meta-row {
   display: flex;
   flex-wrap: wrap;
@@ -90,11 +89,11 @@ body { padding-top: 64px; padding-bottom: 30px; }
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 6px;
-  margin-left: auto; /* Прижимает к правому краю */
+  margin-left: auto; 
 }
 
 /* ============================================================
-   БЛОКИ ЛЕКЦИИ (БЕЗ МЕТОК)
+   БЛОКИ ЛЕКЦИИ
    ============================================================ */
 .lesson-blocks { line-height: 1.7; color: #cbd5e1; padding-top: 8px; }
 
