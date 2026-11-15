@@ -36,18 +36,21 @@
     </div>
   </header>
 
+  <!-- Фиксированный прогресс-бар с кнопкой "Вернуться" -->
   <div class="progress-wrap" id="progress-wrap">
     <div class="progress-wrap-inner">
-      <div class="progress-label">
-        <span>Прогресс чтения: <b id="progress-percent">0%</b></span>
+      <a href="index.html" class="btn-back-fixed" onclick="if (history.length > 1) { history.back(); return false; }">← Вернуться</a>
+      
+      <div class="progress-content">
+        <div class="progress-label">
+          <span>Прогресс чтения: <b id="progress-percent">0%</b></span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
       </div>
-      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
     </div>
   </div>
 
   <div class="container">
-    <a href="index.html" class="btn-back" onclick="if (history.length > 1) { history.back(); return false; }">← Вернуться</a>
-
     <div class="card" id="lecture-block">
       <div class="lesson-header-row">
         <h1 id="lecture-title" class="lesson-title"></h1>
@@ -108,7 +111,6 @@
   <div id="toast"></div>
 
   <script src="js/pwa.js"></script>
-
   <script src="js/common.js"></script>
   <script src="js/sanitize.js"></script>
   <script src="js/progress.js"></script>

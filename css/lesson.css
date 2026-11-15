@@ -6,6 +6,7 @@ body { padding-top: 64px; padding-bottom: 30px; }
 
 .container { max-width: 750px; margin: 0 auto; padding: 0 20px 30px; }
 
+/* Стили для старой кнопки (на случай если осталась где-то) */
 .btn-back {
   display: inline-block;
   margin: 20px 0 16px;
@@ -146,7 +147,7 @@ body { padding-top: 64px; padding-bottom: 30px; }
 .lesson-file-block:hover { background: rgba(99, 102, 241, 0.25); color: #a5b4fc; }
 
 /* ============================================================
-   ЗАКРЕПЛЁННЫЙ ПРОГРЕСС-БАР
+   ЗАКРЕПЛЁННЫЙ ПРОГРЕСС-БАР + КНОПКА "ВЕРНУТЬСЯ"
    ============================================================ */
 .progress-wrap {
   position: fixed;
@@ -160,7 +161,36 @@ body { padding-top: 64px; padding-bottom: 30px; }
   display: none;
 }
 .progress-wrap.visible { display: block; }
-.progress-wrap-inner { max-width: 750px; margin: 0 auto; padding: 0 28px; box-sizing: border-box; }
+
+/* Контейнер для кнопки и полоски (Flexbox) */
+.progress-wrap-inner {
+  max-width: 750px;
+  margin: 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center; 
+  gap: 20px; /* Отступ между кнопкой и полоской */
+}
+
+/* Кнопка "Вернуться" внутри фиксированного бара */
+.btn-back-fixed {
+  color: #94a3b8;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+.btn-back-fixed:hover { color: #818cf8; }
+
+/* Контейнер для полоски */
+.progress-content {
+  flex: 1;
+  min-width: 0;
+}
+
 .progress-label { display: flex; justify-content: flex-start; font-size: 12px; color: #94a3b8; margin-bottom: 6px; font-weight: 600; }
 .progress-label b { color: #818cf8; }
 .progress-track { background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; }
@@ -240,7 +270,7 @@ body.has-progress { padding-top: 122px; }
 .btn-resume-cancel:hover { background: rgba(255,255,255,0.12); color: #fff; }
 
 /* ============================================================
-   ТЕСТ — базовое
+   ТЕСТ
    ============================================================ */
 .timer { font-weight: bold; color: #f43f5e; margin-bottom: 15px; font-size: 15px; }
 .progress-bar-bg { background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
@@ -277,7 +307,6 @@ input[type="text"] {
    НОВЫЕ ТИПЫ ВОПРОСОВ
    ============================================================ */
 
-/* Открытый ответ */
 .open-answer-input {
   width: 100%;
   padding: 14px 16px;
@@ -294,7 +323,6 @@ input[type="text"] {
 }
 .open-answer-input:focus { border-color: #6366f1; }
 
-/* Соответствие */
 .match-question {
   margin-top: 10px;
   display: grid;
@@ -340,7 +368,6 @@ input[type="text"] {
   margin-left: 6px;
 }
 
-/* Сортировка */
 .sort-question { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .sort-item {
   display: flex;
@@ -379,6 +406,8 @@ html.light-theme .lesson-media-block img,
 html.light-theme .lesson-media-block video { background: #e2e8f0; }
 html.light-theme .progress-wrap { background: #f1f5f9; border-bottom-color: rgba(0,0,0,0.08); }
 html.light-theme .progress-track { background: #e2e8f0; }
+html.light-theme .btn-back-fixed { color: #64748b; }
+html.light-theme .btn-back-fixed:hover { color: #4f46e5; }
 html.light-theme .resume-panel { background: #fff; border-color: rgba(99, 102, 241, 0.35); box-shadow: -8px 10px 30px rgba(0,0,0,0.12); }
 html.light-theme .resume-panel-title { color: #0f172a; }
 html.light-theme .resume-panel-text { color: #475569; }
@@ -408,9 +437,10 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
 
   .container { padding: 0 14px 20px; }
 
-  /* Прогресс-бар */
+  /* Прогресс-бар и кнопка */
   .progress-wrap { top: 60px; padding: 8px 0 10px; }
-  .progress-wrap-inner { padding: 0 20px; }
+  .progress-wrap-inner { padding: 0 14px; gap: 12px; }
+  .btn-back-fixed { font-size: 13px; }
   .progress-label { font-size: 11px; }
   .progress-track { height: 6px; }
 
@@ -476,7 +506,7 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
     align-items: flex-start;
   }
   .option-btn > span:first-child { flex-shrink: 0; padding-top: 1px; }
-  .open-answer-input { padding: 12px 14px; font-size: 16px; }   /* 16px — чтобы iOS не зумил */
+  .open-answer-input { padding: 12px 14px; font-size: 16px; }
   input[type="text"] { font-size: 16px; }
   .btn-submit { padding: 14px; font-size: 15px; }
   .timer { font-size: 14px; }
