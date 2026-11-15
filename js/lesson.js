@@ -132,7 +132,7 @@ function initReadingProgress() {
 
   let maxScrollPercent = 0;
   const blocksSeen = new Set();
-  const startTime = Date.now(); // защита от мгновенного прочтения (для XP)
+  const startTime = Date.now(); // защита от накрутки XP
 
   lastProgress = getReadingProgress(lessonId, getUserKey());
   if (lastProgress) {
@@ -169,7 +169,6 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
-    // Сохраняем, если есть прочитанные блоки, даже когда scrollPercent = 0
     if (maxScrollPercent <= 0 && currentProgress.read.length === 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
@@ -185,6 +184,7 @@ function initReadingProgress() {
     const vh = window.innerHeight;
     let changed = false;
 
+    // Отмечаем блоки как видимые (для галочек "Прочитано")
     blocks.forEach(b => {
       const rect = b.getBoundingClientRect();
       if (rect.top < vh && rect.bottom > 0) {
@@ -197,25 +197,22 @@ function initReadingProgress() {
       }
     });
 
+    // Считаем процент ТОЛЬКО от скролла
     const newPct = computeScrollPercent();
-    if (newPct > maxScrollPercent) { maxScrollPercent = newPct; changed = true; }
-
-    // Если все блоки прочитаны — считаем лекцию завершённой
-    if (blocksSeen.size === total && maxScrollPercent < 100) {
-      maxScrollPercent = 100;
-      changed = true;
+    if (newPct > maxScrollPercent) { 
+      maxScrollPercent = newPct; 
+      changed = true; 
     }
 
+    // Если что-то изменилось — обновляем визуал СРАЗУ
     if (changed) {
       currentProgress = {
         read: Array.from(blocksSeen).sort((a, b) => a - b),
         total, scrollPercent: maxScrollPercent
       };
-      
-      // Визуально обновляем полоску СРАЗУ (без задержек)
       updateProgressUI(maxScrollPercent);
 
-      // А вот сохранение и XP защищаем 3-секундным таймером (чтобы не накручивали)
+      // А сохранение и XP делаем только если прошло 3 секунды с открытия
       if (Date.now() - startTime >= 3000) {
         lastPersistTs = 0;
         persistProgress();
@@ -241,7 +238,6 @@ function initReadingProgress() {
   }
 
   window.__checkVisibleBlocks = checkVisibleBlocks;
-  // Оставляем таймеры: на 80мс прогресс покажется сразу, на 3500мс сработает сохранение
   [80, 300, 800, 2000, 3500, 5000, 8000].forEach(t => setTimeout(checkVisibleBlocks, t));
 
   window.addEventListener('load', () => {
