@@ -78,7 +78,6 @@ const ACHIEVEMENTS_LIST = [
   { id: 'first_author', icon: '✏️', title: 'Автор', desc: 'Опубликовать первую лекцию', xp: 40 },
   { id: 'ten_authors', icon: '🏆', title: 'Мастер', desc: 'Опубликовать 10 лекций', xp: 300 },
   { id: 'collector', icon: '⭐', title: 'Коллекционер', desc: 'Добавить 5 лекций в избранное', xp: 20 },
-  { id: 'streak_3', icon: '🔥', title: 'На волне', desc: '3 дня подряд активности', xp: 60 },
   { id: 'first_group', icon: '👥', title: 'Командный игрок', desc: 'Вступить в группу', xp: 15 }
 ];
 

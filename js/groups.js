@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!btn) return;
       const id = btn.dataset.id;
       const action = btn.dataset.action;
-      
+
       if (action === 'open') openGroupDetails(id);
       else if (action === 'assign') openAssignLessons(id);
       else if (action === 'qr') openGroupQrModal(id, e);
@@ -240,8 +240,9 @@ function joinGroupByCode() {
 
   saveGroups();
 
+  // Достижение first_group само начислит +15 XP через unlockAchievement.
+  // Не вызываем addXP(15) отдельно, чтобы не было двойного начисления.
   if (typeof Achievements !== 'undefined' && user.email) {
-    Achievements.addXP(15, user.email);
     Achievements.checkAchievements(user.email);
   }
 
@@ -603,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tabContent.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
-      
+
       const action = btn.dataset.action;
       if (action === 'remove-lesson') removeLessonFromGroup(btn.dataset.group, btn.dataset.id);
       else if (action === 'kick') kickMember(btn.dataset.group, btn.dataset.email);

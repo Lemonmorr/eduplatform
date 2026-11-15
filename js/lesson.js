@@ -8,7 +8,8 @@ let resumeOffered = false;
 let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
-let __xpAwardedForRead = false;
+// ФИКС: XP за прочтение — по lessonId, не глобальный флаг
+const awardedReadXP = {};
 
 if (typeof looksLikeHtml !== 'function') {
   window.looksLikeHtml = function (str) {
@@ -28,7 +29,7 @@ if (typeof sanitizeRichHtml !== 'function') {
 function computeScrollPercent() {
   const el = document.scrollingElement || document.documentElement;
   const scrollable = el.scrollHeight - el.clientHeight;
-  if (scrollable <= 0) return 0; // ФИКС БАГА: изменено с 100 на 0
+  if (scrollable <= 0) return 0;
   const pct = (el.scrollTop / scrollable) * 100;
   return Math.min(100, Math.max(0, Math.round(pct)));
 }
@@ -131,7 +132,7 @@ function initReadingProgress() {
 
   let maxScrollPercent = 0;
   const blocksSeen = new Set();
-  let startTime = Date.now(); // ФИКС БАГА: защита от мгновенного прочтения
+  const startTime = Date.now(); // защита от мгновенного прочтения
 
   lastProgress = getReadingProgress(lessonId, getUserKey());
   if (lastProgress) {
@@ -168,8 +169,9 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
-    if (Date.now() - startTime < 3000) return; // ФИКС БАГА: ждём 3 секунды
-    if (maxScrollPercent <= 0) return;
+    if (Date.now() - startTime < 3000) return;
+    // ФИКС: сохраняем, если есть прочитанные блоки, даже когда scrollPercent = 0
+    if (maxScrollPercent <= 0 && currentProgress.read.length === 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
     lastPersistTs = now;
@@ -180,7 +182,7 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
-    if (Date.now() - startTime < 3000) return; // ФИКС БАГА: не проверяем первые 3 секунды
+    if (Date.now() - startTime < 3000) return;
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -200,7 +202,12 @@ function initReadingProgress() {
     const newPct = computeScrollPercent();
     if (newPct > maxScrollPercent) { maxScrollPercent = newPct; changed = true; }
 
-    // УДАЛЕН БЛОК noScroll (короткие лекции больше не помечаются прочитанными автоматически)
+    // ФИКС: если все блоки прочитаны — считаем лекцию завершённой,
+    // даже если страница короче экрана и scrollPercent не дотянет до 100.
+    if (blocksSeen.size === total && maxScrollPercent < 100) {
+      maxScrollPercent = 100;
+      changed = true;
+    }
 
     if (changed) {
       currentProgress = {
@@ -211,8 +218,9 @@ function initReadingProgress() {
       lastPersistTs = 0;
       persistProgress();
 
-      if (maxScrollPercent >= 100 && !__xpAwardedForRead) {
-        __xpAwardedForRead = true;
+      // ФИКС: XP — по lessonId, а не глобальный флаг
+      if (maxScrollPercent >= 100 && !awardedReadXP[lessonId]) {
+        awardedReadXP[lessonId] = true;
         if (typeof Achievements !== 'undefined') {
           const user = getCurrentUser();
           if (user && user.email) {
@@ -231,7 +239,9 @@ function initReadingProgress() {
   }
 
   window.__checkVisibleBlocks = checkVisibleBlocks;
-  [80, 300, 800, 2000].forEach(t => setTimeout(checkVisibleBlocks, t));
+  // ФИКС: добавили 3500/5000/8000 — чтобы короткие лекции засчитались,
+  // даже если пользователь не скроллит (3-секундный guard иначе блокирует)
+  [80, 300, 800, 2000, 3500, 5000, 8000].forEach(t => setTimeout(checkVisibleBlocks, t));
 
   window.addEventListener('load', () => {
     checkVisibleBlocks();
@@ -417,8 +427,7 @@ function getAttemptNumber(lessonId, userEmail) {
 
 function startTestProcess() {
   const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
-  
-  // ФИКС БАГА: Запрет теста для неавторизованных и без ФИО
+
   if (!currentUser) {
     showToast('Для прохождения теста необходимо авторизоваться.', true);
     window.location.href = 'index.html';
@@ -439,7 +448,8 @@ function startTestProcess() {
 function renderStep() {
   const total = testItem.questions.length;
   const q = testItem.questions[currentStep];
-  document.getElementById('progress-fill-test').style.width = `${((currentStep + 1) / total) * 100}%`;
+  // ФИКС: прогресс показывает «отвечено», а не «текущий вопрос»
+  document.getElementById('progress-fill-test').style.width = `${(currentStep / total) * 100}%`;
   document.getElementById('step-counter-text').textContent = `Вопрос ${currentStep + 1} из ${total}`;
 
   const progressEl = document.getElementById('test-progress-text');
@@ -830,8 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (item.hasTest && item.questions && item.questions.length > 0) {
     document.getElementById('test-block').style.display = 'block';
     const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
-    
-    // ФИКС БАГА: Ограничение доступа к тесту
+
     if (!currentUser) {
       document.getElementById('fio-start-block').innerHTML = `
         <h2 style="margin-top: 0;">Тестирование</h2>

@@ -160,7 +160,7 @@ function renderSubjectsBar(validKeys) {
   const subjects = getUniqueSubjects(validKeys);
   if (subjects.size === 0) { bar.innerHTML = ''; return; }
   const arr = Array.from(subjects.entries()).sort((a, b) => a[0].localeCompare(b[0], 'ru'));
-  
+
   let html = `<span class="subject-chip ${subjectFilter === '' ? 'active' : ''}" data-subject="">Все предметы <span class="chip-count">${validKeys.length}</span></span>`;
   arr.forEach(([subj, count]) => {
     html += `<span class="subject-chip ${subjectFilter === subj ? 'active' : ''}" data-subject="${escapeHtml(subj)}">${escapeHtml(subj)} <span class="chip-count">${count}</span></span>`;
@@ -214,11 +214,6 @@ function renderCatalog() {
     return isApproved && isPublic;
   });
 
-  if (!isGroupsTab) {
-    renderSubjectsBar(validKeys);
-    renderTagsBar(validKeys);
-  }
-
   const authorSelect = document.getElementById('filter-author');
   let authorFilter = '';
   if (authorSelect) {
@@ -244,6 +239,13 @@ function renderCatalog() {
       subjectsList.map(s => `<option value="${escapeHtml(s)}"${s === prevSubject ? ' selected' : ''}>${escapeHtml(s)}</option>`).join('');
     const selectedSubjectValue = subjectSelect.value;
     if (selectedSubjectValue !== subjectFilter) subjectFilter = selectedSubjectValue;
+  }
+
+  // ВАЖНО: рендерим чипы ПОСЛЕ обновления subjectFilter,
+  // иначе бывает рассинхрон «чип активен, а в селекте «Все предметы»».
+  if (!isGroupsTab) {
+    renderSubjectsBar(validKeys);
+    renderTagsBar(validKeys);
   }
 
   const activeFiltersCount = (dateFilter ? 1 : 0) + (authorFilter ? 1 : 0) + (subjectFilter ? 1 : 0) + (tagFilter ? 1 : 0);
@@ -348,7 +350,7 @@ function renderCatalog() {
           <span class="card-title">${escapeHtml(item.title)}</span>
           ${readBadgeHtml}
           ${isPending ? '<span class="badge-pending">На модерации</span>' : ''}
-          <span class="card-author ${isAdmin ? 'admin-clickable' : ''}" 
+          <span class="card-author ${isAdmin ? 'admin-clickable' : ''}"
                 ${isAdmin ? `data-author-email="${escapeHtml(authorEmail)}" data-author-name="${escapeHtml(authorName)}"` : ''}>
             Автор: ${escapeHtml(authorName)}
           </span>
@@ -388,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
         viewAuthorDetails(authorEl.dataset.authorEmail, authorEl.dataset.authorName);
         return;
       }
-      
+
       const tagEl = e.target.closest('.card-tag');
       if (tagEl) {
         setTagFilter(tagEl.dataset.tag);
@@ -397,10 +399,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const actionBtn = e.target.closest('[data-action]');
       if (!actionBtn) return;
-      
+
       const action = actionBtn.dataset.action;
       const id = actionBtn.closest('[data-id]').dataset.id;
-      
+
       if (action === 'approve') approveLesson(id);
       else if (action === 'reject') rejectLesson(id);
       else if (action === 'fav') toggleFavoriteFromCatalog(id, e);
@@ -433,7 +435,6 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && typeof renderCatalog === 'function') renderCatalog();
 });
 
-// КОГДА СЕРВЕР ПРОСНУЛСЯ И ДАННЫЕ ПРИШЛИ, ОБНОВЛЯЕМ КАТАЛОГ И ВОССТАНАВЛИВАЕМ АККАУНТ
 window.addEventListener('dataSynced', () => {
   if (typeof refreshAuthUI === 'function') refreshAuthUI();
   if (typeof renderCatalog === 'function') renderCatalog();

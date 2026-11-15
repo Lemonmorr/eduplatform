@@ -30,6 +30,14 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function escapeAttr(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 /* ---------- Утилиты для текста ---------- */
 function stripHtmlToPlain(html) {
   if (!html) return '';
@@ -49,8 +57,21 @@ function localTodayISO() {
    STORAGE — ГИБРИДНОЕ ХРАНИЛИЩЕ (Браузер + Сервер)
    ============================================================ */
 const __storageCache = new Map();
-const __pendingSync = new Map(); // Для сохранения того, что не удалось отправить
+const __pendingSync = new Map();
 const API_BASE = '/api/kv';
+
+function persistPendingSync() {
+  try {
+    localStorage.setItem('__pending_sync', JSON.stringify(Object.fromEntries(__pendingSync)));
+  } catch (e) {}
+}
+(function restorePendingSync() {
+  try {
+    const raw = localStorage.getItem('__pending_sync');
+    if (!raw) return;
+    Object.entries(JSON.parse(raw)).forEach(([k, v]) => __pendingSync.set(k, v));
+  } catch (e) {}
+})();
 
 // Показываем экран загрузки
 function showLoadingScreen() {
@@ -80,79 +101,91 @@ function hideLoadingScreen() {
 }
 
 // 1. Синхронизация с сервером при старте
+// Render Free засыпает → первый запрос может ждать 30-50 с.
+// Поэтому первая попытка длинная, приложение не блокируется,
+// если локальные данные уже есть.
 async function syncWithServer() {
-  showLoadingScreen();
-  let attempts = 0;
-  const MAX_ATTEMPTS = 5;
+  let hasLocalData = false;
+  try {
+    hasLocalData = !!(localStorage.getItem('my_lessons') || localStorage.getItem('usersDB'));
+  } catch (e) {}
 
-  while (attempts < MAX_ATTEMPTS) {
+  if (!hasLocalData) showLoadingScreen();
+
+  const timeouts = [65000, 15000, 10000];
+
+  for (let i = 0; i < timeouts.length; i++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 секунд на попытку
+      const tid = setTimeout(() => controller.abort(), timeouts[i]);
 
       const res = await fetch('/api/all', { signal: controller.signal });
-      clearTimeout(timeoutId);
-
+      clearTimeout(tid);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
       const data = await res.json();
-      
-      // Записываем всё в локальное хранилище
+
       for (const [key, value] of Object.entries(data)) {
-        if (value !== null) {
-          if (key === 'currentUser') continue; 
-          
-          // ФИКС БАГА: не загружаем гостевой прогресс с сервера и сливаем с локальным
-          if (key === 'last_reading_progress') {
-            if (value['guest']) delete value['guest'];
-            const local = __storageCache.get(key) || {};
-            const merged = { ...local, ...value }; 
-            __storageCache.set(key, merged);
-            try { localStorage.setItem(key, JSON.stringify(merged)); } catch(e){}
-            continue;
-          }
-          
-          __storageCache.set(key, value);
-          try {
-            localStorage.setItem(key, JSON.stringify(value));
-          } catch (e) {
-            console.warn(`Не удалось сохранить ${key} в localStorage. Превышен лимит.`, e);
-          }
+        if (value === null) continue;
+        if (key === 'currentUser') continue;
+
+        if (key === 'last_reading_progress') {
+          if (value['guest']) delete value['guest'];
+          const local = __storageCache.get(key) || {};
+          const merged = { ...local, ...value };
+          __storageCache.set(key, merged);
+          try { localStorage.setItem(key, JSON.stringify(merged)); } catch (e) {}
+          continue;
+        }
+
+        __storageCache.set(key, value);
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+          console.warn(`Не удалось сохранить ${key} в localStorage. Превышен лимит.`, e);
         }
       }
 
-      // Отправляем то, что не ушло в прошлый раз (если есть)
+      // Накладываем локальные несинхронизированные изменения поверх серверных
+      for (const [key, value] of __pendingSync) {
+        __storageCache.set(key, value);
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+      }
+
+      // Отправляем очередь несохранённого
       for (const [key, value] of __pendingSync) {
         fetch(`${API_BASE}/${key}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ value })
-        }).then(r => { if (r.ok) __pendingSync.delete(key); }).catch(() => {});
+        }).then(r => {
+          if (r.ok) {
+            __pendingSync.delete(key);
+            persistPendingSync();
+          }
+        }).catch(() => {});
       }
-      
-      console.log('✅ Данные синхронизированы с Turso');
+
+      console.log(`✅ Данные синхронизированы (попытка ${i + 1})`);
       hideLoadingScreen();
       window.dispatchEvent(new Event('dataSynced'));
-      return; // Успех, выходим из цикла
-      
+      return;
+
     } catch (e) {
-      attempts++;
-      console.log(`⏳ Сервер спит или недоступен. Попытка ${attempts} из ${MAX_ATTEMPTS}...`);
-      
-      if (attempts >= MAX_ATTEMPTS) {
-        const loader = document.getElementById('global-loader');
-        if (loader) {
-          loader.innerHTML = `
-            <div style="color: #ef4444; text-align: center; padding: 20px;">
-              <div style="font-size: 24px; margin-bottom: 10px;">⚠️ Ошибка загрузки данных</div>
-              <div style="font-size: 14px; margin-bottom: 20px;">Сервер не отвечает. Попробуйте позже.</div>
-              <button onclick="location.reload()" style="padding: 10px 20px; background: #6366f1; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Повторить</button>
-            </div>
-          `;
-        }
-        return;
+      const isTimeout = e.name === 'AbortError';
+      console.warn(`[sync] попытка ${i + 1}/${timeouts.length}: ${isTimeout ? 'таймаут' : e.message}`);
+
+      if (i < timeouts.length - 1) {
+        await new Promise(r => setTimeout(r, 1500));
       }
-      await new Promise(r => setTimeout(r, 5000));
     }
+  }
+
+  // Все попытки провалились — работаем на локальных данных
+  hideLoadingScreen();
+  window.dispatchEvent(new Event('dataSynced'));
+  if (!hasLocalData) {
+    showToast('Сервер не отвечает. Работаем в офлайн-режиме.', true);
   }
 }
 
@@ -186,8 +219,8 @@ const Storage = {
 
       // ВАЖНО: не отправляем сессию пользователя на сервер
       if (key === 'currentUser') return true;
-      
-      // ФИКС БАГА: Запрещаем отправлять гостевой прогресс на сервер
+
+      // Запрещаем отправлять гостевой прогресс на сервер
       if (key === 'last_reading_progress') {
         if (typeof getCurrentUser === 'function' && !getCurrentUser()) return true;
         if (value && value['guest']) {
@@ -204,7 +237,8 @@ const Storage = {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
       }).catch(err => {
         console.warn('Ошибка сохранения на сервер:', err);
-        __pendingSync.set(key, value); // запомним на потом
+        __pendingSync.set(key, value);
+        persistPendingSync();
       });
 
       return true;
@@ -217,7 +251,7 @@ const Storage = {
   remove(key) {
     try { localStorage.removeItem(key); } catch (e) {}
     __storageCache.delete(key);
-    
+
     if (key !== 'currentUser') {
       fetch(`${API_BASE}/${key}`, { method: 'DELETE' })
         .catch(err => console.warn('Ошибка удаления на сервер:', err));
@@ -277,7 +311,7 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([type="hidden"]), 
 function openModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
-  
+
   __lastFocusedElement = document.activeElement;
   el.style.display = 'flex';
   el.classList.add('active');
