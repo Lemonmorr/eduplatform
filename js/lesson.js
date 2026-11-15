@@ -39,7 +39,6 @@ function updateProgressUI(percent) {
   if (fill) fill.style.width = percent + '%';
   if (pctEl) pctEl.textContent = percent + '%';
 
-  // ЕДИНАЯ МЕТКА В ШАПКЕ
   const badge = document.getElementById('lecture-read-badge');
   if (badge) {
     if (percent >= 100) badge.style.display = 'inline-block';
@@ -60,8 +59,6 @@ function renderLessonContent(container, lesson) {
     wrap.className = 'block-anchor';
     wrap.id = 'block-' + idx;
     wrap.dataset.blockIndex = idx;
-
-    // УДАЛЕНА МЕТКА С КАЖДОГО БЛОКА
 
     if (block.type === 'text') {
       const div = document.createElement('div');
@@ -183,7 +180,6 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
-    // УБРАНА 3-СЕКУНДНАЯ ЗАДЕРЖКА, ЧТОБЫ ПОЛОСКА ДВИГАЛАСЬ СРАЗУ
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -194,7 +190,7 @@ function initReadingProgress() {
         const idx = parseInt(b.dataset.blockIndex, 10);
         if (!blocksSeen.has(idx)) {
           blocksSeen.add(idx);
-          b.classList.add('is-read'); // Визуально блок подсвечивается, если надо
+          b.classList.add('is-read');
           changed = true;
         }
       }
@@ -276,58 +272,53 @@ function initReadingProgress() {
   });
 }
 
+// ФИКС: Вычисляем блок на основе процента, а не массива прочитанных
 function showResumePanel(savedProgress, total) {
   const panel = document.getElementById('resume-panel');
   if (!panel) return;
-  let firstUnread = 0;
-  for (let i = 0; i < total; i++) {
-    if (!savedProgress.read.includes(i)) { firstUnread = i; break; }
-  }
-  let percent = 0;
-  if (typeof savedProgress.scrollPercent === 'number') percent = savedProgress.scrollPercent;
-  else percent = Math.round((savedProgress.read.length / total) * 100);
+  let percent = savedProgress.scrollPercent || 0;
+  
+  let estimatedBlock = Math.floor((percent / 100) * total) + 1;
+  if (estimatedBlock > total) estimatedBlock = total;
+  if (estimatedBlock < 1) estimatedBlock = 1;
 
   document.getElementById('resume-percent').textContent = percent + '%';
-  document.getElementById('resume-block-num').textContent = (firstUnread + 1);
+  document.getElementById('resume-block-num').textContent = estimatedBlock;
   document.getElementById('resume-block-total').textContent = total;
   setTimeout(() => panel.classList.add('visible'), 700);
 }
+
 function dismissResumePanel() {
   const panel = document.getElementById('resume-panel');
   if (panel) panel.classList.remove('visible');
 }
+
+// ФИКС: Скроллим к конкретному блоку, вычисленному по проценту (без скачков из-за картинок)
 function restoreProgress() {
   if (!lastProgress) return;
   const lectureContentEl = document.getElementById('lecture-content');
   const total = currentProgress.total || lectureContentEl.querySelectorAll('.block-anchor').length;
+  const percent = lastProgress.scrollPercent || 0;
 
-  const readArr = Array.isArray(lastProgress.read) ? [...lastProgress.read] : [];
-  currentProgress = {
-    read: readArr, total,
-    scrollPercent: (typeof lastProgress.scrollPercent === 'number') ? lastProgress.scrollPercent : 0
-  };
-
-  lectureContentEl.querySelectorAll('.block-anchor').forEach(b => {
-    const idx = parseInt(b.dataset.blockIndex, 10);
-    if (currentProgress.read.includes(idx)) b.classList.add('is-read');
-  });
-
-  updateProgressUI(currentProgress.scrollPercent);
-
-  let firstUnread = 0;
-  for (let i = 0; i < total; i++) { if (!currentProgress.read.includes(i)) { firstUnread = i; break; } }
-  const el = document.getElementById('block-' + firstUnread);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    el.style.transition = 'background 0.6s';
-    el.style.background = 'rgba(99, 102, 241, 0.2)';
-    setTimeout(() => { el.style.background = ''; }, 1800);
-  }
-
+  currentProgress.scrollPercent = percent;
+  updateProgressUI(percent);
   dismissResumePanel();
+
+  let targetBlockIndex = Math.floor((percent / 100) * total);
+  if (targetBlockIndex >= total) targetBlockIndex = total - 1;
+  if (targetBlockIndex < 0) targetBlockIndex = 0;
+
+  setTimeout(() => {
+    const el = document.getElementById('block-' + targetBlockIndex);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 150);
+
   showToast('Прогресс восстановлен!');
-  if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 500);
+  if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 800);
 }
+
 function startFromScratch() {
   const lectureContentEl = document.getElementById('lecture-content');
   const lessonId = new URLSearchParams(window.location.search).get('id');
@@ -398,7 +389,7 @@ function shareLesson() {
 }
 
 /* ============================================================
-   ТЕСТЫ
+   ТЕСТЫ (ПОЛНОСТЬЮ ВОССТАНОВЛЕНЫ)
    ============================================================ */
 let studentFIO = '';
 let currentStep = 0;
@@ -812,7 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (item.subject) metaHtml += `<span class="lesson-subject">${escapeHtml(item.subject)}</span>`;
   metaHtml += `<span class="lesson-views">👁 <b>${item.views || 0}</b> просмотров</span>`;
   
-  // ВСТАВЛЯЕМ ЕДИНУЮ МЕТКУ В ШАПКУ
   if (metaRow) {
     metaRow.innerHTML = metaHtml + `<span id="lecture-read-badge" style="display: none; background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; margin-left: auto;">✓ Прочитано</span>`;
   }

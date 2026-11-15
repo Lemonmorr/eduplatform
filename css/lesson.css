@@ -83,7 +83,6 @@ body { padding-top: 64px; padding-bottom: 30px; }
 }
 .lesson-views { display: inline-flex; align-items: center; gap: 5px; }
 
-/* Стиль для новой метки в шапке */
 .badge-lecture-read {
   background: rgba(16, 185, 129, 0.15);
   color: #10b981;
@@ -95,7 +94,7 @@ body { padding-top: 64px; padding-bottom: 30px; }
 }
 
 /* ============================================================
-   БЛОКИ ЛЕКЦИИ (ВОЗВРАЩЕНО В ОБЫЧНЫЙ ВИД)
+   БЛОКИ ЛЕКЦИИ (БЕЗ МЕТОК)
    ============================================================ */
 .lesson-blocks { line-height: 1.7; color: #cbd5e1; padding-top: 8px; }
 
