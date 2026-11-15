@@ -9,9 +9,8 @@ let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
 
-// ФИКС 1: Переменная для запоминания XP для КАЖДОЙ лекции (а не глобально)
 const awardedReadXP = {};
-let isResetting = false; // ФИКС 2: Флаг, чтобы при сбросе не сохранялся старый прогресс
+let isResetting = false; 
 
 if (typeof looksLikeHtml !== 'function') {
   window.looksLikeHtml = function (str) {
@@ -171,7 +170,7 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
-    if (isResetting) return; // Запрещаем сохранять, если нажали "Начать заново"
+    if (isResetting) return; 
     if (maxScrollPercent <= 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
@@ -183,7 +182,6 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
-    // Убрал проверку на 3 секунды, чтобы полоска двигалась сразу от скролла
     if (isResetting) return;
     rafPending = false;
     const vh = window.innerHeight;
@@ -203,8 +201,6 @@ function initReadingProgress() {
 
     const newPct = computeScrollPercent();
     if (newPct > maxScrollPercent) { maxScrollPercent = newPct; changed = true; }
-
-    // ФИКС 3: Убрал принудительные 100% для коротких страниц. Только чистый скролл.
 
     if (changed) {
       currentProgress = {
@@ -268,7 +264,7 @@ function initReadingProgress() {
   window.addEventListener('resize', scheduleCheck);
 
   window.addEventListener('beforeunload', () => {
-    if (isResetting) return; // Не сохраняем, если нажали "Начать заново"
+    if (isResetting) return; 
     if (maxScrollPercent > 0) {
       const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
       if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
@@ -333,23 +329,32 @@ function restoreProgress() {
   if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 500);
 }
 
+// ФИКС: Убираем якорь #block-X из URL при сбросе!
 function startFromScratch() {
-  isResetting = true; // Включаем блокировку сохранения
+  isResetting = true; 
   const lectureContentEl = document.getElementById('lecture-content');
   const lessonId = new URLSearchParams(window.location.search).get('id');
   const total = lectureContentEl.querySelectorAll('.block-anchor').length;
+  
   currentProgress = { read: [], total, scrollPercent: 0 };
   clearReadingProgress(lessonId, getUserKey());
+  
+  // Принудительно чистим localStorage
+  try {
+    const all = JSON.parse(localStorage.getItem('last_reading_progress') || '{}');
+    if (all[getUserKey()] && all[getUserKey()][lessonId]) {
+      delete all[getUserKey()][lessonId];
+      localStorage.setItem('last_reading_progress', JSON.stringify(all));
+    }
+  } catch(e) {}
+
   lectureContentEl.querySelectorAll('.block-anchor').forEach(el => el.classList.remove('is-read'));
   updateProgressUI(0);
   dismissResumePanel();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  showToast('Начинаем с начала!');
   
-  // Перезагружаем страницу принудительно, чтобы сбросить все внутренние переменные
-  setTimeout(() => {
-    window.location.reload();
-  }, 100);
+  // ВОТ ГЛАВНЫЙ ФИКС: берем URL и отрезаем всё, что начинается с #
+  const cleanUrl = window.location.href.split('#')[0];
+  window.location.href = cleanUrl;
 }
 
 function incrementViews(lessonId) {
@@ -819,8 +824,9 @@ document.addEventListener('DOMContentLoaded', () => {
   incrementViews(currentLessonId);
   initReadingProgress();
 
+  // ФИКС: Если есть якорь, скроллим, НО только если мы НЕ сбрасываем прогресс
   const hash = window.location.hash;
-  if (hash && /^#block-\d+$/.test(hash)) {
+  if (hash && /^#block-\d+$/.test(hash) && !isResetting) {
     setTimeout(() => {
       const el = document.querySelector(hash);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
