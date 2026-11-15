@@ -9,6 +9,7 @@ let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
 let __xpAwardedForRead = false;
+let isResetting = false; // ЗАЩИТА ОТ СОХРАНЕНИЯ ПРИ СБРОСЕ
 
 if (typeof looksLikeHtml !== 'function') {
   window.looksLikeHtml = function (str) {
@@ -28,7 +29,10 @@ if (typeof sanitizeRichHtml !== 'function') {
 function computeScrollPercent() {
   const el = document.scrollingElement || document.documentElement;
   const scrollable = el.scrollHeight - el.clientHeight;
-  if (scrollable <= 0) return 0; 
+  
+  // Если страница короткая (нечего скроллить), сразу ставим 100
+  if (scrollable <= 0) return 100; 
+  
   const pct = (el.scrollTop / scrollable) * 100;
   return Math.min(100, Math.max(0, Math.round(pct)));
 }
@@ -169,6 +173,7 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
+    if (isResetting) return; // БЛОКИРУЕМ СОХРАНЕНИЕ ПРИ СБРОСЕ
     if (maxScrollPercent <= 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
@@ -180,6 +185,7 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
+    if (isResetting) return; // БЛОКИРУЕМ ОБНОВЛЕНИЕ ПРИ СБРОСЕ
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -261,6 +267,7 @@ function initReadingProgress() {
   window.addEventListener('resize', scheduleCheck);
 
   window.addEventListener('beforeunload', () => {
+    if (isResetting) return; // БЛОКИРУЕМ СОХРАНЕНИЕ 100% ПРИ ПЕРЕЗАГРУЗКЕ
     if (maxScrollPercent > 0) {
       const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
       if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
@@ -272,7 +279,6 @@ function initReadingProgress() {
   });
 }
 
-// ФИКС: Вычисляем блок на основе процента, а не массива прочитанных
 function showResumePanel(savedProgress, total) {
   const panel = document.getElementById('resume-panel');
   if (!panel) return;
@@ -293,7 +299,6 @@ function dismissResumePanel() {
   if (panel) panel.classList.remove('visible');
 }
 
-// ФИКС: Скроллим к конкретному блоку, вычисленному по проценту (без скачков из-за картинок)
 function restoreProgress() {
   if (!lastProgress) return;
   const lectureContentEl = document.getElementById('lecture-content');
@@ -319,17 +324,29 @@ function restoreProgress() {
   if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 800);
 }
 
+// ИДЕАЛЬНЫЙ СБРОС: чистим память, убираем хэш и ЖЕСТКО ПЕРЕЗАГРУЖАЕМ страницу
 function startFromScratch() {
-  const lectureContentEl = document.getElementById('lecture-content');
+  isResetting = true; 
   const lessonId = new URLSearchParams(window.location.search).get('id');
-  const total = lectureContentEl.querySelectorAll('.block-anchor').length;
-  currentProgress = { read: [], total, scrollPercent: 0 };
+
+  try {
+    const all = JSON.parse(localStorage.getItem('last_reading_progress') || '{}');
+    if (all[getUserKey()] && all[getUserKey()][lessonId]) {
+      delete all[getUserKey()][lessonId];
+      localStorage.setItem('last_reading_progress', JSON.stringify(all));
+    }
+  } catch(e) {}
+
   clearReadingProgress(lessonId, getUserKey());
-  lectureContentEl.querySelectorAll('.block-anchor').forEach(el => el.classList.remove('is-read'));
-  updateProgressUI(0);
-  dismissResumePanel();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  showToast('Начинаем с начала!');
+
+  const url = new URL(window.location.href);
+  url.hash = '';
+  window.history.replaceState({}, '', url.toString()); // Убираем якорь #block-2 без перезагрузки
+  
+  window.location.reload(); // ПРИНУДИТЕЛЬНАЯ ПЕРЕЗАГРУЗКА
+
+  // Предохранитель: если браузер заблокирует перезагрузку, сбрасываем флаг через секунду
+  setTimeout(() => { isResetting = false; }, 1000);
 }
 
 function incrementViews(lessonId) {
@@ -389,7 +406,7 @@ function shareLesson() {
 }
 
 /* ============================================================
-   ТЕСТЫ (ПОЛНОСТЬЮ ВОССТАНОВЛЕНЫ)
+   ТЕСТЫ
    ============================================================ */
 let studentFIO = '';
 let currentStep = 0;
