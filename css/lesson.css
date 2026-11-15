@@ -84,17 +84,26 @@ body { padding-top: 64px; padding-bottom: 30px; }
 .lesson-views { display: inline-flex; align-items: center; gap: 5px; }
 
 /* ============================================================
-   БЛОКИ ЛЕКЦИИ
+   БЛОКИ ЛЕКЦИИ (ИСПРАВЛЕН ВИЗУАЛЬНЫЙ БАГ)
    ============================================================ */
 .lesson-blocks { line-height: 1.7; color: #cbd5e1; padding-top: 8px; }
 
-.block-anchor { position: relative; padding: 0 28px; }
+/* Делаем Flex-контейнер для текста и метки */
+.block-anchor { 
+  position: relative; 
+  padding: 0 28px; 
+  display: flex;
+  align-items: flex-start; /* Выравниваем по верхнему краю */
+  gap: 16px; /* Отступ между текстом и меткой */
+}
 .block-anchor:last-child { padding-bottom: 28px; }
 
+/* Метка "Прочитано" теперь прижата к верху и стоит справа */
 .block-read-mark {
-  position: absolute;
-  top: 8px;
-  right: 36px;
+  order: 2;            /* Ставим метку справа (после текста) */
+  flex-shrink: 0;      /* Запрещаем метке сжиматься */
+  margin-top: 4px;     /* Выравниваем по первой строке текста */
+  
   background: rgba(16, 185, 129, 0.15);
   color: #10b981;
   font-size: 11px;
@@ -104,8 +113,18 @@ body { padding-top: 64px; padding-bottom: 30px; }
   opacity: 0;
   transition: opacity 0.3s;
   pointer-events: none;
+  height: fit-content;
 }
 .block-anchor.is-read .block-read-mark { opacity: 1; }
+
+/* Сам контент занимает всё оставшееся место слева */
+.lesson-text-block, 
+.lesson-media-block, 
+.lesson-file-block {
+  order: 1;
+  flex: 1;
+  min-width: 0; /* Защита от вылезания за экран */
+}
 
 .lesson-text-block {
   margin-bottom: 18px;
@@ -143,11 +162,12 @@ body { padding-top: 64px; padding-bottom: 30px; }
   font-size: 14px;
   margin-bottom: 18px;
   transition: background 0.2s, color 0.2s;
+  width: fit-content;
 }
 .lesson-file-block:hover { background: rgba(99, 102, 241, 0.25); color: #a5b4fc; }
 
 /* ============================================================
-   ЗАКРЕПЛЁННЫЙ ПРОГРЕСС-БАР + КНОПКА "ВЕРНУТЬСЯ"
+   ЗАКРЕПЛЁННЫЙ ПРОГРЕСС-БАР
    ============================================================ */
 .progress-wrap {
   position: fixed;
@@ -177,7 +197,7 @@ body { padding-top: 64px; padding-bottom: 30px; }
 }
 .btn-back-fixed:hover { color: #818cf8; }
 
-/* Контейнер для полоски (возвращаем как было, по центру) */
+/* Контейнер для полоски (по центру) */
 .progress-wrap-inner {
   max-width: 750px;
   margin: 0 auto;
@@ -433,18 +453,8 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
 
   /* Прогресс-бар */
   .progress-wrap { top: 60px; padding: 8px 0 10px; }
-  
-  /* Кнопка на мобилках */
-  .btn-back-fixed { 
-    left: 14px; 
-    font-size: 13px; 
-  }
-  
-  /* Чтобы полоска не заезжала под кнопку, добавляем отступ слева */
-  .progress-wrap-inner { 
-    padding: 0 14px 0 95px; 
-  }
-  
+  .btn-back-fixed { left: 14px; font-size: 13px; }
+  .progress-wrap-inner { padding: 0 14px 0 95px; }
   .progress-label { font-size: 11px; }
   .progress-track { height: 6px; }
 
@@ -471,12 +481,11 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
   .lesson-subject { padding: 3px 8px; font-size: 12px; }
 
   /* Блоки */
-  .block-anchor { padding: 0 18px; }
+  .block-anchor { padding: 0 18px; gap: 10px; }
   .block-anchor:last-child { padding-bottom: 22px; }
 
   .block-read-mark {
-    top: 6px;
-    right: 24px;
+    margin-top: 2px;
     font-size: 10px;
     padding: 2px 6px;
   }
