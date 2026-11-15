@@ -8,8 +8,7 @@ let resumeOffered = false;
 let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
-
-// ФИКС: XP теперь запоминается для каждой лекции отдельно
+let isResetting = false; // ФЛАГ: запрещает сохранять прогресс при сбросе
 const awardedReadXP = {};
 
 if (typeof looksLikeHtml !== 'function') {
@@ -30,10 +29,7 @@ if (typeof sanitizeRichHtml !== 'function') {
 function computeScrollPercent() {
   const el = document.scrollingElement || document.documentElement;
   const scrollable = el.scrollHeight - el.clientHeight;
-  
-  // Если лекция короткая (нечего скроллить), возвращаем 100, чтобы она засчиталась
-  if (scrollable <= 0) return 100; 
-  
+  if (scrollable <= 0) return 0; // Если нечего скроллить, прогресс 0
   const pct = (el.scrollTop / scrollable) * 100;
   return Math.min(100, Math.max(0, Math.round(pct)));
 }
@@ -45,7 +41,7 @@ function updateProgressUI(percent) {
   if (pctEl) pctEl.textContent = percent + '%';
 }
 
-/* ---------- Рендер блоков + глоссарий ---------- */
+/* ---------- Рендер блоков ---------- */
 function renderLessonContent(container, lesson) {
   container.innerHTML = '';
   const blocks = (lesson.blocks && lesson.blocks.length)
@@ -130,25 +126,34 @@ function initReadingProgress() {
   if (total === 0) return;
 
   const lessonId = new URLSearchParams(window.location.search).get('id');
+  const isReset = new URLSearchParams(window.location.search).get('reset') === '1';
+
+  // Если мы только что нажали "Начать заново" — чистим URL и игнорируем старый прогресс
+  if (isReset) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('reset');
+    window.history.replaceState({}, '', url.toString());
+  }
 
   document.getElementById('progress-wrap').classList.add('visible');
   document.body.classList.add('has-progress');
 
   let maxScrollPercent = 0;
   const blocksSeen = new Set();
-  let startTime = Date.now(); 
 
-  lastProgress = getReadingProgress(lessonId, getUserKey());
-  if (lastProgress) {
-    if (Array.isArray(lastProgress.read)) lastProgress.read.forEach(i => blocksSeen.add(i));
-    const oldScrollDone = typeof lastProgress.scrollPercent === 'number' && lastProgress.scrollPercent >= 100;
-    if (oldScrollDone) {
-      lastProgress = null;
-      clearReadingProgress(lessonId, getUserKey());
-    } else if (typeof lastProgress.scrollPercent === 'number') {
-      maxScrollPercent = lastProgress.scrollPercent;
-    } else {
-      maxScrollPercent = Math.round((lastProgress.read.length / total) * 100);
+  if (!isReset) {
+    lastProgress = getReadingProgress(lessonId, getUserKey());
+    if (lastProgress) {
+      if (Array.isArray(lastProgress.read)) lastProgress.read.forEach(i => blocksSeen.add(i));
+      const oldScrollDone = typeof lastProgress.scrollPercent === 'number' && lastProgress.scrollPercent >= 100;
+      if (oldScrollDone) {
+        lastProgress = null;
+        clearReadingProgress(lessonId, getUserKey());
+      } else if (typeof lastProgress.scrollPercent === 'number') {
+        maxScrollPercent = lastProgress.scrollPercent;
+      } else {
+        maxScrollPercent = Math.round((lastProgress.read.length / total) * 100);
+      }
     }
   }
 
@@ -173,6 +178,7 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
+    if (isResetting) return; // Не сохраняем при сбросе
     if (maxScrollPercent <= 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
@@ -184,6 +190,7 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
+    if (isResetting) return;
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -212,7 +219,6 @@ function initReadingProgress() {
       lastPersistTs = 0;
       persistProgress();
 
-      // ФИКС: XP дается для каждой лекции отдельно
       if (maxScrollPercent >= 100 && !awardedReadXP[lessonId]) {
         awardedReadXP[lessonId] = true;
         if (typeof Achievements !== 'undefined') {
@@ -266,6 +272,7 @@ function initReadingProgress() {
   window.addEventListener('resize', scheduleCheck);
 
   window.addEventListener('beforeunload', () => {
+    if (isResetting) return; // Не сохраняем при сбросе!
     if (maxScrollPercent > 0) {
       const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
       if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
@@ -330,12 +337,27 @@ function restoreProgress() {
   if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 500);
 }
 
-// ФИКС: Кнопка "Начать заново" теперь просто перезагружает страницу с нуля
+// ФИКС: Теперь при сбросе мы запрещаем сохранять старый прогресс
 function startFromScratch() {
+  isResetting = true;
   const lessonId = new URLSearchParams(window.location.search).get('id');
+  
+  // Жестко чистим localStorage
+  try {
+    const all = JSON.parse(localStorage.getItem('last_reading_progress') || '{}');
+    if (all[getUserKey()] && all[getUserKey()][lessonId]) {
+      delete all[getUserKey()][lessonId];
+      localStorage.setItem('last_reading_progress', JSON.stringify(all));
+    }
+  } catch(e) {}
+  
+  // Шлем на сервер
   clearReadingProgress(lessonId, getUserKey());
-  // Убираем хэш из URL и перезагружаем, чтобы сбросить все переменные
-  window.location.href = window.location.href.split('#')[0];
+
+  // Перезагружаем с флагом reset, чтобы скрипт не подхватил кэш сервера при загрузке
+  const url = new URL(window.location.href);
+  url.searchParams.set('reset', '1');
+  window.location.href = url.toString();
 }
 
 function incrementViews(lessonId) {
