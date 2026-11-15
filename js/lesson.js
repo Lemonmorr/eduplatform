@@ -292,10 +292,13 @@ function showResumePanel(savedProgress, total) {
   document.getElementById('resume-block-total').textContent = total;
   setTimeout(() => panel.classList.add('visible'), 700);
 }
+
 function dismissResumePanel() {
   const panel = document.getElementById('resume-panel');
   if (panel) panel.classList.remove('visible');
 }
+
+// ФИКС: Переносит ровно на тот процент, который был
 function restoreProgress() {
   if (!lastProgress) return;
   const lectureContentEl = document.getElementById('lecture-content');
@@ -314,22 +317,25 @@ function restoreProgress() {
 
   updateProgressUI(currentProgress.scrollPercent);
 
-  let firstUnread = 0;
-  for (let i = 0; i < total; i++) { if (!currentProgress.read.includes(i)) { firstUnread = i; break; } }
-  const el = document.getElementById('block-' + firstUnread);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    el.style.transition = 'background 0.6s';
-    el.style.background = 'rgba(99, 102, 241, 0.2)';
-    setTimeout(() => { el.style.background = ''; }, 1800);
-  }
-
+  // Скрываем панель
   dismissResumePanel();
+
+  // Ждем долю секунды, чтобы страница точно прогрузилась, и скроллим по процентам
+  setTimeout(() => {
+    const el = document.documentElement;
+    const scrollable = el.scrollHeight - el.clientHeight;
+    
+    if (scrollable > 0) {
+      // Высчитываем пиксели: (общая_высота * процент)
+      const targetScroll = Math.round(scrollable * (currentProgress.scrollPercent / 100));
+      window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    }
+  }, 100);
+
   showToast('Прогресс восстановлен!');
   if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 500);
 }
 
-// ФИКС: Убираем якорь #block-X из URL при сбросе!
 function startFromScratch() {
   isResetting = true; 
   const lectureContentEl = document.getElementById('lecture-content');
@@ -339,7 +345,6 @@ function startFromScratch() {
   currentProgress = { read: [], total, scrollPercent: 0 };
   clearReadingProgress(lessonId, getUserKey());
   
-  // Принудительно чистим localStorage
   try {
     const all = JSON.parse(localStorage.getItem('last_reading_progress') || '{}');
     if (all[getUserKey()] && all[getUserKey()][lessonId]) {
@@ -352,7 +357,7 @@ function startFromScratch() {
   updateProgressUI(0);
   dismissResumePanel();
   
-  // ВОТ ГЛАВНЫЙ ФИКС: берем URL и отрезаем всё, что начинается с #
+  // ЖЕСТКИЙ ФИКС: отрезаем якорь #block-2 и перезагружаем
   const cleanUrl = window.location.href.split('#')[0];
   window.location.href = cleanUrl;
 }
@@ -824,7 +829,6 @@ document.addEventListener('DOMContentLoaded', () => {
   incrementViews(currentLessonId);
   initReadingProgress();
 
-  // ФИКС: Если есть якорь, скроллим, НО только если мы НЕ сбрасываем прогресс
   const hash = window.location.hash;
   if (hash && /^#block-\d+$/.test(hash) && !isResetting) {
     setTimeout(() => {
