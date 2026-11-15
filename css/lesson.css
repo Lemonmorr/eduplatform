@@ -6,7 +6,6 @@ body { padding-top: 64px; padding-bottom: 30px; }
 
 .container { max-width: 750px; margin: 0 auto; padding: 0 20px 30px; }
 
-/* Стили для старой кнопки (на случай если осталась где-то) */
 .btn-back {
   display: inline-block;
   margin: 20px 0 16px;
@@ -64,6 +63,7 @@ body { padding-top: 64px; padding-bottom: 30px; }
 .btn-fav:hover { border-color: #facc15; color: #facc15; transform: scale(1.1); }
 .btn-fav.active { background: rgba(250, 204, 21, 0.15); border-color: #facc15; color: #facc15; }
 
+/* Метаданные и ЕДИНАЯ метка "Прочитано" */
 .lesson-meta-row {
   display: flex;
   flex-wrap: wrap;
@@ -83,48 +83,24 @@ body { padding-top: 64px; padding-bottom: 30px; }
 }
 .lesson-views { display: inline-flex; align-items: center; gap: 5px; }
 
+/* Стиль для новой метки в шапке */
+.badge-lecture-read {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  margin-left: auto; /* Прижимает к правому краю */
+}
+
 /* ============================================================
-   БЛОКИ ЛЕКЦИИ (ИСПРАВЛЕН ВИЗУАЛЬНЫЙ БАГ)
+   БЛОКИ ЛЕКЦИИ (ВОЗВРАЩЕНО В ОБЫЧНЫЙ ВИД)
    ============================================================ */
 .lesson-blocks { line-height: 1.7; color: #cbd5e1; padding-top: 8px; }
 
-/* Делаем Flex-контейнер для текста и метки */
-.block-anchor { 
-  position: relative; 
-  padding: 0 28px; 
-  display: flex;
-  align-items: flex-start; /* Выравниваем по верхнему краю */
-  gap: 16px; /* Отступ между текстом и меткой */
-}
+.block-anchor { position: relative; padding: 0 28px; }
 .block-anchor:last-child { padding-bottom: 28px; }
-
-/* Метка "Прочитано" теперь прижата к верху и стоит справа */
-.block-read-mark {
-  order: 2;            /* Ставим метку справа (после текста) */
-  flex-shrink: 0;      /* Запрещаем метке сжиматься */
-  margin-top: 4px;     /* Выравниваем по первой строке текста */
-  
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 6px;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-  height: fit-content;
-}
-.block-anchor.is-read .block-read-mark { opacity: 1; }
-
-/* Сам контент занимает всё оставшееся место слева */
-.lesson-text-block, 
-.lesson-media-block, 
-.lesson-file-block {
-  order: 1;
-  flex: 1;
-  min-width: 0; /* Защита от вылезания за экран */
-}
 
 .lesson-text-block {
   margin-bottom: 18px;
@@ -162,7 +138,6 @@ body { padding-top: 64px; padding-bottom: 30px; }
   font-size: 14px;
   margin-bottom: 18px;
   transition: background 0.2s, color 0.2s;
-  width: fit-content;
 }
 .lesson-file-block:hover { background: rgba(99, 102, 241, 0.25); color: #a5b4fc; }
 
@@ -182,7 +157,6 @@ body { padding-top: 64px; padding-bottom: 30px; }
 }
 .progress-wrap.visible { display: block; }
 
-/* Кнопка "Вернуться" на самом краю экрана слева */
 .btn-back-fixed {
   position: absolute;
   left: 24px; 
@@ -197,7 +171,6 @@ body { padding-top: 64px; padding-bottom: 30px; }
 }
 .btn-back-fixed:hover { color: #818cf8; }
 
-/* Контейнер для полоски (по центру) */
 .progress-wrap-inner {
   max-width: 750px;
   margin: 0 auto;
@@ -422,6 +395,7 @@ html.light-theme .progress-wrap { background: #f1f5f9; border-bottom-color: rgba
 html.light-theme .progress-track { background: #e2e8f0; }
 html.light-theme .btn-back-fixed { color: #64748b; }
 html.light-theme .btn-back-fixed:hover { color: #4f46e5; }
+html.light-theme .badge-lecture-read { background: rgba(16, 185, 129, 0.1); color: #059669; }
 html.light-theme .resume-panel { background: #fff; border-color: rgba(99, 102, 241, 0.35); box-shadow: -8px 10px 30px rgba(0,0,0,0.12); }
 html.light-theme .resume-panel-title { color: #0f172a; }
 html.light-theme .resume-panel-text { color: #475569; }
@@ -451,14 +425,12 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
 
   .container { padding: 0 14px 20px; }
 
-  /* Прогресс-бар */
   .progress-wrap { top: 60px; padding: 8px 0 10px; }
   .btn-back-fixed { left: 14px; font-size: 13px; }
   .progress-wrap-inner { padding: 0 14px 0 95px; }
   .progress-label { font-size: 11px; }
   .progress-track { height: 6px; }
 
-  /* Карточка лекции */
   .card { border-radius: 14px; margin-bottom: 16px; }
 
   .lesson-header-row {
@@ -471,7 +443,6 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
   .lesson-header-actions { width: 100%; justify-content: flex-end; gap: 8px; }
   .btn-fav { width: 40px; height: 40px; font-size: 18px; }
 
-  /* Мета-строка */
   .lesson-meta-row {
     padding: 0 18px;
     gap: 8px;
@@ -479,16 +450,10 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
     margin-bottom: 14px;
   }
   .lesson-subject { padding: 3px 8px; font-size: 12px; }
+  .badge-lecture-read { font-size: 11px; padding: 3px 8px; margin-left: 0; }
 
-  /* Блоки */
-  .block-anchor { padding: 0 18px; gap: 10px; }
+  .block-anchor { padding: 0 18px; }
   .block-anchor:last-child { padding-bottom: 22px; }
-
-  .block-read-mark {
-    margin-top: 2px;
-    font-size: 10px;
-    padding: 2px 6px;
-  }
 
   .lesson-text-block {
     font-size: 15px;
@@ -509,7 +474,6 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
     font-size: 14px;
   }
 
-  /* Тест */
   .card.test-card { padding: 20px 18px; }
   .question-title { font-size: 1.1rem; margin-bottom: 14px; }
   .option-btn {
@@ -524,7 +488,6 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
   .btn-submit { padding: 14px; font-size: 15px; }
   .timer { font-size: 14px; }
 
-  /* Панель resume — снизу, во всю ширину */
   .resume-panel {
     top: auto;
     bottom: 0;
@@ -548,11 +511,9 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
   .resume-panel-title { font-size: 14px; }
   .resume-panel-text { font-size: 13px; margin-bottom: 14px; }
 
-  /* Соответствие — в одну колонку */
   .match-question { grid-template-columns: 1fr; gap: 14px; }
   .match-item { padding: 12px; font-size: 14px; }
 
-  /* Сортировка */
   .sort-item { padding: 12px; font-size: 14px; }
 }
 

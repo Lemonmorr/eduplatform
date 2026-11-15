@@ -36,10 +36,8 @@
     </div>
   </header>
 
-  <!-- Фиксированный прогресс-бар с кнопкой "Вернуться" на краю -->
   <div class="progress-wrap" id="progress-wrap">
     <a href="index.html" class="btn-back-fixed" onclick="if (history.length > 1) { history.back(); return false; }">← Вернуться</a>
-    
     <div class="progress-wrap-inner">
       <div class="progress-label">
         <span>Прогресс чтения: <b id="progress-percent">0%</b></span>
@@ -57,7 +55,12 @@
           <button class="btn-fav" id="share-btn" title="Поделиться" aria-label="Поделиться" onclick="shareLesson()">↗</button>
         </div>
       </div>
-      <div class="lesson-meta-row" id="lesson-meta-row"></div>
+      
+      <!-- СЮДА ДОБАВЛЕНА ЕДИНАЯ МЕТКА ПРОЧИТАНО -->
+      <div class="lesson-meta-row" id="lesson-meta-row">
+        <span id="lecture-read-badge" class="badge-lecture-read" style="display: none;">✓ Прочитано</span>
+      </div>
+      
       <div id="lecture-content" class="lesson-blocks"></div>
     </div>
 
@@ -117,6 +120,6 @@
   <script src="js/rich-editor.js"></script>
   <script src="js/glossary.js"></script>
   <script src="js/achievements.js"></script>
-  <script src="js/lesson.js"></script>
+  <script src="js/lesson.js?v=1003"></script>
 </body>
 </html>

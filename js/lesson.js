@@ -5,10 +5,6 @@
 let currentProgress = { read: [], total: 0, scrollPercent: 0 };
 let lastProgress = null;
 let resumeOffered = false;
-let ioObserver = null;
-let scrollHandler = null;
-let resizeObserver = null;
-
 const awardedReadXP = {};
 let isResetting = false; 
 
@@ -40,6 +36,16 @@ function updateProgressUI(percent) {
   const pctEl = document.getElementById('progress-percent');
   if (fill) fill.style.width = percent + '%';
   if (pctEl) pctEl.textContent = percent + '%';
+
+  // ПОКАЗЫВАЕМ ЕДИНУЮ МЕТКУ В ШАПКЕ
+  const badge = document.getElementById('lecture-read-badge');
+  if (badge) {
+    if (percent >= 100) {
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
 }
 
 /* ---------- Рендер блоков + глоссарий ---------- */
@@ -56,10 +62,7 @@ function renderLessonContent(container, lesson) {
     wrap.id = 'block-' + idx;
     wrap.dataset.blockIndex = idx;
 
-    const mark = document.createElement('span');
-    mark.className = 'block-read-mark';
-    mark.textContent = '✓ Прочитано';
-    wrap.appendChild(mark);
+    // УБРАНО ДОБАВЛЕНИЕ МЕТКИ НА КАЖДЫЙ БЛОК
 
     if (block.type === 'text') {
       const div = document.createElement('div');
@@ -132,33 +135,24 @@ function initReadingProgress() {
   document.body.classList.add('has-progress');
 
   let maxScrollPercent = 0;
-  const blocksSeen = new Set();
-  let startTime = Date.now(); 
 
   lastProgress = getReadingProgress(lessonId, getUserKey());
   if (lastProgress) {
-    if (Array.isArray(lastProgress.read)) lastProgress.read.forEach(i => blocksSeen.add(i));
     const oldScrollDone = typeof lastProgress.scrollPercent === 'number' && lastProgress.scrollPercent >= 100;
     if (oldScrollDone) {
       lastProgress = null;
       clearReadingProgress(lessonId, getUserKey());
     } else if (typeof lastProgress.scrollPercent === 'number') {
       maxScrollPercent = lastProgress.scrollPercent;
-    } else {
-      maxScrollPercent = Math.round((lastProgress.read.length / total) * 100);
     }
   }
 
   currentProgress = {
-    read: Array.from(blocksSeen).sort((a, b) => a - b),
+    read: [],
     total, scrollPercent: maxScrollPercent
   };
+  
   updateProgressUI(maxScrollPercent);
-
-  blocks.forEach(b => {
-    const idx = parseInt(b.dataset.blockIndex, 10);
-    if (blocksSeen.has(idx)) b.classList.add('is-read');
-  });
 
   if (lastProgress && !resumeOffered) {
     resumeOffered = true;
@@ -176,7 +170,7 @@ function initReadingProgress() {
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
     lastPersistTs = now;
 
-    const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
+    const data = { read: [], total, scrollPercent: maxScrollPercent };
     if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
     saveReadingProgress(lessonId, data, getUserKey());
   }
@@ -184,41 +178,25 @@ function initReadingProgress() {
   function checkVisibleBlocks() {
     if (isResetting) return;
     rafPending = false;
-    const vh = window.innerHeight;
-    let changed = false;
-
-    blocks.forEach(b => {
-      const rect = b.getBoundingClientRect();
-      if (rect.top < vh && rect.bottom > 0) {
-        const idx = parseInt(b.dataset.blockIndex, 10);
-        if (!blocksSeen.has(idx)) {
-          blocksSeen.add(idx);
-          b.classList.add('is-read');
-          changed = true;
-        }
-      }
-    });
-
+    
     const newPct = computeScrollPercent();
-    if (newPct > maxScrollPercent) { maxScrollPercent = newPct; changed = true; }
+    if (newPct > maxScrollPercent) { maxScrollPercent = newPct; }
 
-    if (changed) {
-      currentProgress = {
-        read: Array.from(blocksSeen).sort((a, b) => a - b),
-        total, scrollPercent: maxScrollPercent
-      };
-      updateProgressUI(maxScrollPercent);
-      lastPersistTs = 0;
+    // Всегда обновляем UI, чтобы метка появилась/исчезла вовремя
+    currentProgress.scrollPercent = maxScrollPercent;
+    updateProgressUI(maxScrollPercent);
+    
+    if (newPct > 0) {
       persistProgress();
+    }
 
-      if (maxScrollPercent >= 100 && !awardedReadXP[lessonId]) {
-        awardedReadXP[lessonId] = true;
-        if (typeof Achievements !== 'undefined') {
-          const user = getCurrentUser();
-          if (user && user.email) {
-            Achievements.addXP(10, user.email);
-            Achievements.checkAchievements(user.email);
-          }
+    if (maxScrollPercent >= 100 && !awardedReadXP[lessonId]) {
+      awardedReadXP[lessonId] = true;
+      if (typeof Achievements !== 'undefined') {
+        const user = getCurrentUser();
+        if (user && user.email) {
+          Achievements.addXP(10, user.email);
+          Achievements.checkAchievements(user.email);
         }
       }
     }
@@ -249,14 +227,6 @@ function initReadingProgress() {
     try { resizeObserver.observe(document.body); resizeObserver.observe(lectureContentEl); } catch (e) {}
   }
 
-  if (ioObserver) ioObserver.disconnect();
-  ioObserver = new IntersectionObserver((entries) => {
-    let hasIntersect = false;
-    entries.forEach(entry => { if (entry.isIntersecting) hasIntersect = true; });
-    if (hasIntersect) scheduleCheck();
-  }, { root: null, threshold: [0, 0.01, 0.1, 0.25, 0.5, 0.75, 1], rootMargin: '200px 0px 200px 0px' });
-  blocks.forEach(b => ioObserver.observe(b));
-
   if (scrollHandler) window.removeEventListener('scroll', scrollHandler);
   scrollHandler = () => scheduleCheck();
   window.addEventListener('scroll', scrollHandler, { passive: true });
@@ -266,7 +236,7 @@ function initReadingProgress() {
   window.addEventListener('beforeunload', () => {
     if (isResetting) return; 
     if (maxScrollPercent > 0) {
-      const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
+      const data = { read: [], total, scrollPercent: maxScrollPercent };
       if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
       saveReadingProgress(lessonId, data, getUserKey());
     }
@@ -279,13 +249,12 @@ function initReadingProgress() {
 function showResumePanel(savedProgress, total) {
   const panel = document.getElementById('resume-panel');
   if (!panel) return;
-  let firstUnread = 0;
-  for (let i = 0; i < total; i++) {
-    if (!savedProgress.read.includes(i)) { firstUnread = i; break; }
-  }
   let percent = 0;
   if (typeof savedProgress.scrollPercent === 'number') percent = savedProgress.scrollPercent;
-  else percent = Math.round((savedProgress.read.length / total) * 100);
+  
+  // Ищем, до какого блока примерно доскроллил (для красоты текста)
+  let firstUnread = Math.floor((percent / 100) * total);
+  if (firstUnread >= total) firstUnread = total - 1;
 
   document.getElementById('resume-percent').textContent = percent + '%';
   document.getElementById('resume-block-num').textContent = (firstUnread + 1);
@@ -298,35 +267,25 @@ function dismissResumePanel() {
   if (panel) panel.classList.remove('visible');
 }
 
-// ФИКС: Переносит ровно на тот процент, который был
 function restoreProgress() {
   if (!lastProgress) return;
   const lectureContentEl = document.getElementById('lecture-content');
   const total = currentProgress.total || lectureContentEl.querySelectorAll('.block-anchor').length;
 
-  const readArr = Array.isArray(lastProgress.read) ? [...lastProgress.read] : [];
   currentProgress = {
-    read: readArr, total,
+    read: [], total,
     scrollPercent: (typeof lastProgress.scrollPercent === 'number') ? lastProgress.scrollPercent : 0
   };
 
-  lectureContentEl.querySelectorAll('.block-anchor').forEach(b => {
-    const idx = parseInt(b.dataset.blockIndex, 10);
-    if (currentProgress.read.includes(idx)) b.classList.add('is-read');
-  });
-
   updateProgressUI(currentProgress.scrollPercent);
 
-  // Скрываем панель
   dismissResumePanel();
 
-  // Ждем долю секунды, чтобы страница точно прогрузилась, и скроллим по процентам
   setTimeout(() => {
     const el = document.documentElement;
     const scrollable = el.scrollHeight - el.clientHeight;
     
     if (scrollable > 0) {
-      // Высчитываем пиксели: (общая_высота * процент)
       const targetScroll = Math.round(scrollable * (currentProgress.scrollPercent / 100));
       window.scrollTo({ top: targetScroll, behavior: 'smooth' });
     }
@@ -353,11 +312,9 @@ function startFromScratch() {
     }
   } catch(e) {}
 
-  lectureContentEl.querySelectorAll('.block-anchor').forEach(el => el.classList.remove('is-read'));
   updateProgressUI(0);
   dismissResumePanel();
   
-  // ЖЕСТКИЙ ФИКС: отрезаем якорь #block-2 и перезагружаем
   const cleanUrl = window.location.href.split('#')[0];
   window.location.href = cleanUrl;
 }
@@ -821,7 +778,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let metaHtml = '';
   if (item.subject) metaHtml += `<span class="lesson-subject">${escapeHtml(item.subject)}</span>`;
   metaHtml += `<span class="lesson-views">👁 <b>${item.views || 0}</b> просмотров</span>`;
-  metaRow.innerHTML = metaHtml;
+  
+  // Вставляем HTML в мета-строку, оставляя место для бейджа
+  if (metaRow) {
+    // Очищаем, но оставляем бейдж
+    metaRow.innerHTML = metaHtml + `<span id="lecture-read-badge" class="badge-lecture-read" style="display: none;">✓ Прочитано</span>`;
+  }
 
   updateFavButton(currentLessonId);
   document.getElementById('fav-btn').setAttribute('onclick', `toggleFavoriteFromLesson('${escapeHtml(currentLessonId)}')`);
