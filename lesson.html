@@ -36,17 +36,15 @@
     </div>
   </header>
 
-  <!-- Фиксированный прогресс-бар с кнопкой "Вернуться" -->
+  <!-- Фиксированный прогресс-бар с кнопкой "Вернуться" на краю -->
   <div class="progress-wrap" id="progress-wrap">
+    <a href="index.html" class="btn-back-fixed" onclick="if (history.length > 1) { history.back(); return false; }">← Вернуться</a>
+    
     <div class="progress-wrap-inner">
-      <a href="index.html" class="btn-back-fixed" onclick="if (history.length > 1) { history.back(); return false; }">← Вернуться</a>
-      
-      <div class="progress-content">
-        <div class="progress-label">
-          <span>Прогресс чтения: <b id="progress-percent">0%</b></span>
-        </div>
-        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label">
+        <span>Прогресс чтения: <b id="progress-percent">0%</b></span>
       </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
     </div>
   </div>
 

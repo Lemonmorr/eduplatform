@@ -162,33 +162,27 @@ body { padding-top: 64px; padding-bottom: 30px; }
 }
 .progress-wrap.visible { display: block; }
 
-/* Контейнер для кнопки и полоски (Flexbox) */
-.progress-wrap-inner {
-  max-width: 750px;
-  margin: 0 auto;
-  padding: 0 20px;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center; 
-  gap: 20px; /* Отступ между кнопкой и полоской */
-}
-
-/* Кнопка "Вернуться" внутри фиксированного бара */
+/* Кнопка "Вернуться" на самом краю экрана слева */
 .btn-back-fixed {
+  position: absolute;
+  left: 24px; 
+  top: 50%;
+  transform: translateY(-50%);
   color: #94a3b8;
   text-decoration: none;
   font-weight: 600;
   font-size: 14px;
   white-space: nowrap;
   transition: color 0.2s;
-  flex-shrink: 0;
 }
 .btn-back-fixed:hover { color: #818cf8; }
 
-/* Контейнер для полоски */
-.progress-content {
-  flex: 1;
-  min-width: 0;
+/* Контейнер для полоски (возвращаем как было, по центру) */
+.progress-wrap-inner {
+  max-width: 750px;
+  margin: 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
 }
 
 .progress-label { display: flex; justify-content: flex-start; font-size: 12px; color: #94a3b8; margin-bottom: 6px; font-weight: 600; }
@@ -437,10 +431,20 @@ html.light-theme .sort-item.drag-over { background: rgba(99, 102, 241, 0.1); bor
 
   .container { padding: 0 14px 20px; }
 
-  /* Прогресс-бар и кнопка */
+  /* Прогресс-бар */
   .progress-wrap { top: 60px; padding: 8px 0 10px; }
-  .progress-wrap-inner { padding: 0 14px; gap: 12px; }
-  .btn-back-fixed { font-size: 13px; }
+  
+  /* Кнопка на мобилках */
+  .btn-back-fixed { 
+    left: 14px; 
+    font-size: 13px; 
+  }
+  
+  /* Чтобы полоска не заезжала под кнопку, добавляем отступ слева */
+  .progress-wrap-inner { 
+    padding: 0 14px 0 95px; 
+  }
+  
   .progress-label { font-size: 11px; }
   .progress-track { height: 6px; }
 
