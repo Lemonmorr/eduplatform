@@ -8,7 +8,7 @@ let resumeOffered = false;
 let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
-// ФИКС: XP за прочтение — по lessonId, не глобальный флаг
+// XP за прочтение — по lessonId, не глобальный флаг
 const awardedReadXP = {};
 
 if (typeof looksLikeHtml !== 'function') {
@@ -132,7 +132,7 @@ function initReadingProgress() {
 
   let maxScrollPercent = 0;
   const blocksSeen = new Set();
-  const startTime = Date.now(); // защита от мгновенного прочтения
+  const startTime = Date.now(); // защита от мгновенного прочтения (для XP)
 
   lastProgress = getReadingProgress(lessonId, getUserKey());
   if (lastProgress) {
@@ -169,8 +169,7 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
-    if (Date.now() - startTime < 3000) return;
-    // ФИКС: сохраняем, если есть прочитанные блоки, даже когда scrollPercent = 0
+    // Сохраняем, если есть прочитанные блоки, даже когда scrollPercent = 0
     if (maxScrollPercent <= 0 && currentProgress.read.length === 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
@@ -182,7 +181,6 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
-    if (Date.now() - startTime < 3000) return;
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -202,8 +200,7 @@ function initReadingProgress() {
     const newPct = computeScrollPercent();
     if (newPct > maxScrollPercent) { maxScrollPercent = newPct; changed = true; }
 
-    // ФИКС: если все блоки прочитаны — считаем лекцию завершённой,
-    // даже если страница короче экрана и scrollPercent не дотянет до 100.
+    // Если все блоки прочитаны — считаем лекцию завершённой
     if (blocksSeen.size === total && maxScrollPercent < 100) {
       maxScrollPercent = 100;
       changed = true;
@@ -214,18 +211,23 @@ function initReadingProgress() {
         read: Array.from(blocksSeen).sort((a, b) => a - b),
         total, scrollPercent: maxScrollPercent
       };
+      
+      // Визуально обновляем полоску СРАЗУ (без задержек)
       updateProgressUI(maxScrollPercent);
-      lastPersistTs = 0;
-      persistProgress();
 
-      // ФИКС: XP — по lessonId, а не глобальный флаг
-      if (maxScrollPercent >= 100 && !awardedReadXP[lessonId]) {
-        awardedReadXP[lessonId] = true;
-        if (typeof Achievements !== 'undefined') {
-          const user = getCurrentUser();
-          if (user && user.email) {
-            Achievements.addXP(10, user.email);
-            Achievements.checkAchievements(user.email);
+      // А вот сохранение и XP защищаем 3-секундным таймером (чтобы не накручивали)
+      if (Date.now() - startTime >= 3000) {
+        lastPersistTs = 0;
+        persistProgress();
+
+        if (maxScrollPercent >= 100 && !awardedReadXP[lessonId]) {
+          awardedReadXP[lessonId] = true;
+          if (typeof Achievements !== 'undefined') {
+            const user = getCurrentUser();
+            if (user && user.email) {
+              Achievements.addXP(10, user.email);
+              Achievements.checkAchievements(user.email);
+            }
           }
         }
       }
@@ -239,8 +241,7 @@ function initReadingProgress() {
   }
 
   window.__checkVisibleBlocks = checkVisibleBlocks;
-  // ФИКС: добавили 3500/5000/8000 — чтобы короткие лекции засчитались,
-  // даже если пользователь не скроллит (3-секундный guard иначе блокирует)
+  // Оставляем таймеры: на 80мс прогресс покажется сразу, на 3500мс сработает сохранение
   [80, 300, 800, 2000, 3500, 5000, 8000].forEach(t => setTimeout(checkVisibleBlocks, t));
 
   window.addEventListener('load', () => {
@@ -448,7 +449,6 @@ function startTestProcess() {
 function renderStep() {
   const total = testItem.questions.length;
   const q = testItem.questions[currentStep];
-  // ФИКС: прогресс показывает «отвечено», а не «текущий вопрос»
   document.getElementById('progress-fill-test').style.width = `${(currentStep / total) * 100}%`;
   document.getElementById('step-counter-text').textContent = `Вопрос ${currentStep + 1} из ${total}`;
 
