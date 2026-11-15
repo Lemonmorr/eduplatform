@@ -8,7 +8,7 @@ let resumeOffered = false;
 let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
-const awardedReadXP = {};
+let __xpAwardedForRead = false;
 
 if (typeof looksLikeHtml !== 'function') {
   window.looksLikeHtml = function (str) {
@@ -28,7 +28,7 @@ if (typeof sanitizeRichHtml !== 'function') {
 function computeScrollPercent() {
   const el = document.scrollingElement || document.documentElement;
   const scrollable = el.scrollHeight - el.clientHeight;
-  if (scrollable <= 0) return 0; // Если страница короткая — прогресс 0, пока не докрутишь
+  if (scrollable <= 0) return 0; 
   const pct = (el.scrollTop / scrollable) * 100;
   return Math.min(100, Math.max(0, Math.round(pct)));
 }
@@ -117,7 +117,7 @@ function renderLessonContent(container, lesson) {
   }
 }
 
-/* ---------- Прогресс (ЧИСТЫЙ СКРОЛЛ) ---------- */
+/* ---------- Прогресс ---------- */
 function initReadingProgress() {
   const lectureContentEl = document.getElementById('lecture-content');
   const blocks = lectureContentEl.querySelectorAll('.block-anchor');
@@ -131,15 +131,26 @@ function initReadingProgress() {
 
   let maxScrollPercent = 0;
   const blocksSeen = new Set();
+  let startTime = Date.now(); 
 
   lastProgress = getReadingProgress(lessonId, getUserKey());
   if (lastProgress) {
     if (Array.isArray(lastProgress.read)) lastProgress.read.forEach(i => blocksSeen.add(i));
-    if (typeof lastProgress.scrollPercent === 'number') {
+    const oldScrollDone = typeof lastProgress.scrollPercent === 'number' && lastProgress.scrollPercent >= 100;
+    if (oldScrollDone) {
+      lastProgress = null;
+      clearReadingProgress(lessonId, getUserKey());
+    } else if (typeof lastProgress.scrollPercent === 'number') {
       maxScrollPercent = lastProgress.scrollPercent;
+    } else {
+      maxScrollPercent = Math.round((lastProgress.read.length / total) * 100);
     }
   }
 
+  currentProgress = {
+    read: Array.from(blocksSeen).sort((a, b) => a - b),
+    total, scrollPercent: maxScrollPercent
+  };
   updateProgressUI(maxScrollPercent);
 
   blocks.forEach(b => {
@@ -152,47 +163,29 @@ function initReadingProgress() {
     showResumePanel(lastProgress, total);
   }
 
+  let rafPending = false;
   let lastPersistTs = 0;
-  const PERSIST_INTERVAL_MS = 500;
+  const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
+    // Убрал блокировку 3 секунды, чтобы сохранялось сразу
     if (maxScrollPercent <= 0) return;
-    const data = { read: [...blocksSeen], total, scrollPercent: maxScrollPercent };
+    const now = Date.now();
+    if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
+    lastPersistTs = now;
+
+    const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
     if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
     saveReadingProgress(lessonId, data, getUserKey());
   }
 
-  // Главная функция обновления полоски
-  function updateScrollProgress() {
-    const newPct = computeScrollPercent();
-    
-    if (newPct > maxScrollPercent) {
-      maxScrollPercent = newPct;
-      updateProgressUI(maxScrollPercent); // Рисуем полоску МГНОВЕННО
-
-      const now = Date.now();
-      if (now - lastPersistTs > PERSIST_INTERVAL_MS) {
-        lastPersistTs = now;
-        persistProgress();
-      }
-    }
-
-    // Выдаем XP только когда докрутил до самого низа
-    if (maxScrollPercent >= 100 && !awardedReadXP[lessonId]) {
-      awardedReadXP[lessonId] = true;
-      if (typeof Achievements !== 'undefined') {
-        const user = getCurrentUser();
-        if (user && user.email) {
-          Achievements.addXP(10, user.email);
-          Achievements.checkAchievements(user.email);
-        }
-      }
-    }
-  }
-
-  // Отмечаем блоки галочками, когда они попадают в экран
   function checkVisibleBlocks() {
+    // УБРАЛ ЖЕСТКИЙ RETURN (if (Date.now() - startTime < 3000) return;)
+    // Теперь полоска двигается моментально
+    rafPending = false;
     const vh = window.innerHeight;
+    let changed = false;
+
     blocks.forEach(b => {
       const rect = b.getBoundingClientRect();
       if (rect.top < vh && rect.bottom > 0) {
@@ -200,30 +193,86 @@ function initReadingProgress() {
         if (!blocksSeen.has(idx)) {
           blocksSeen.add(idx);
           b.classList.add('is-read');
+          changed = true;
         }
       }
     });
+
+    const newPct = computeScrollPercent();
+    if (newPct > maxScrollPercent) { maxScrollPercent = newPct; changed = true; }
+
+    // УБРАЛ принудительное 100%, теперь только скролл
+    if (changed) {
+      currentProgress = {
+        read: Array.from(blocksSeen).sort((a, b) => a - b),
+        total, scrollPercent: maxScrollPercent
+      };
+      updateProgressUI(maxScrollPercent);
+      lastPersistTs = 0;
+      persistProgress();
+
+      // XP даем только когда реально докрутил до конца
+      if (maxScrollPercent >= 100 && !__xpAwardedForRead) {
+        __xpAwardedForRead = true;
+        if (typeof Achievements !== 'undefined') {
+          const user = getCurrentUser();
+          if (user && user.email) {
+            Achievements.addXP(10, user.email);
+            Achievements.checkAchievements(user.email);
+          }
+        }
+      }
+    }
   }
 
-  let ticking = false;
-  window.addEventListener('scroll', () => {
-    if (!ticking) {
-      window.requestAnimationFrame(() => {
-        updateScrollProgress();
-        checkVisibleBlocks();
-        ticking = false;
-      });
-      ticking = true;
+  function scheduleCheck() {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(checkVisibleBlocks);
+  }
+
+  window.__checkVisibleBlocks = checkVisibleBlocks;
+  [80, 300, 800, 2000].forEach(t => setTimeout(checkVisibleBlocks, t));
+
+  window.addEventListener('load', () => {
+    checkVisibleBlocks();
+    setTimeout(checkVisibleBlocks, 100);
+    setTimeout(checkVisibleBlocks, 500);
+  });
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { checkVisibleBlocks(); setTimeout(checkVisibleBlocks, 200); });
+  }
+
+  if (window.ResizeObserver) {
+    if (resizeObserver) resizeObserver.disconnect();
+    resizeObserver = new ResizeObserver(() => scheduleCheck());
+    try { resizeObserver.observe(document.body); resizeObserver.observe(lectureContentEl); } catch (e) {}
+  }
+
+  if (ioObserver) ioObserver.disconnect();
+  ioObserver = new IntersectionObserver((entries) => {
+    let hasIntersect = false;
+    entries.forEach(entry => { if (entry.isIntersecting) hasIntersect = true; });
+    if (hasIntersect) scheduleCheck();
+  }, { root: null, threshold: [0, 0.01, 0.1, 0.25, 0.5, 0.75, 1], rootMargin: '200px 0px 200px 0px' });
+  blocks.forEach(b => ioObserver.observe(b));
+
+  if (scrollHandler) window.removeEventListener('scroll', scrollHandler);
+  scrollHandler = () => scheduleCheck();
+  window.addEventListener('scroll', scrollHandler, { passive: true });
+  window.addEventListener('scrollend', checkVisibleBlocks, { passive: true });
+  window.addEventListener('resize', scheduleCheck);
+
+  window.addEventListener('beforeunload', () => {
+    if (maxScrollPercent > 0) {
+      const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
+      if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
+      saveReadingProgress(lessonId, data, getUserKey());
     }
-  }, { passive: true });
-
-  // Проверяем при загрузке
-  updateScrollProgress();
-  checkVisibleBlocks();
-
-  window.addEventListener('beforeunload', persistProgress);
+  });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') persistProgress();
+    if (document.visibilityState === 'hidden') { lastPersistTs = 0; persistProgress(); }
   });
 }
 
@@ -277,6 +326,7 @@ function restoreProgress() {
 
   dismissResumePanel();
   showToast('Прогресс восстановлен!');
+  if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 500);
 }
 function startFromScratch() {
   const lectureContentEl = document.getElementById('lecture-content');
@@ -368,7 +418,7 @@ function getAttemptNumber(lessonId, userEmail) {
 
 function startTestProcess() {
   const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
-
+  
   if (!currentUser) {
     showToast('Для прохождения теста необходимо авторизоваться.', true);
     window.location.href = 'index.html';
@@ -389,7 +439,7 @@ function startTestProcess() {
 function renderStep() {
   const total = testItem.questions.length;
   const q = testItem.questions[currentStep];
-  document.getElementById('progress-fill-test').style.width = `${(currentStep / total) * 100}%`;
+  document.getElementById('progress-fill-test').style.width = `${((currentStep + 1) / total) * 100}%`;
   document.getElementById('step-counter-text').textContent = `Вопрос ${currentStep + 1} из ${total}`;
 
   const progressEl = document.getElementById('test-progress-text');
@@ -780,7 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (item.hasTest && item.questions && item.questions.length > 0) {
     document.getElementById('test-block').style.display = 'block';
     const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
-
+    
     if (!currentUser) {
       document.getElementById('fio-start-block').innerHTML = `
         <h2 style="margin-top: 0;">Тестирование</h2>
