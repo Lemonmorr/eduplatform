@@ -8,8 +8,7 @@ let resumeOffered = false;
 let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
-let isResetting = false; 
-const awardedReadXP = {};
+let __xpAwardedForRead = false;
 
 if (typeof looksLikeHtml !== 'function') {
   window.looksLikeHtml = function (str) {
@@ -29,7 +28,7 @@ if (typeof sanitizeRichHtml !== 'function') {
 function computeScrollPercent() {
   const el = document.scrollingElement || document.documentElement;
   const scrollable = el.scrollHeight - el.clientHeight;
-  if (scrollable <= 0) return 100; // Короткие лекции сразу 100%
+  if (scrollable <= 0) return 0; 
   const pct = (el.scrollTop / scrollable) * 100;
   return Math.min(100, Math.max(0, Math.round(pct)));
 }
@@ -40,10 +39,11 @@ function updateProgressUI(percent) {
   if (fill) fill.style.width = percent + '%';
   if (pctEl) pctEl.textContent = percent + '%';
 
-  // ЕДИНАЯ МЕТКА ПРОЧИТАНО В ШАПКЕ
+  // ЕДИНАЯ МЕТКА В ШАПКЕ
   const badge = document.getElementById('lecture-read-badge');
   if (badge) {
-    badge.style.display = (percent >= 100) ? 'inline-block' : 'none';
+    if (percent >= 100) badge.style.display = 'inline-block';
+    else badge.style.display = 'none';
   }
 }
 
@@ -61,7 +61,7 @@ function renderLessonContent(container, lesson) {
     wrap.id = 'block-' + idx;
     wrap.dataset.blockIndex = idx;
 
-    // Метки на блоках больше нет
+    // УДАЛЕНА МЕТКА С КАЖДОГО БЛОКА
 
     if (block.type === 'text') {
       const div = document.createElement('div');
@@ -124,161 +124,221 @@ function renderLessonContent(container, lesson) {
 /* ---------- Прогресс ---------- */
 function initReadingProgress() {
   const lectureContentEl = document.getElementById('lecture-content');
-  if (!lectureContentEl) return;
-
   const blocks = lectureContentEl.querySelectorAll('.block-anchor');
   const total = blocks.length;
   if (total === 0) return;
 
   const lessonId = new URLSearchParams(window.location.search).get('id');
 
-  const wrap = document.getElementById('progress-wrap');
-  if (wrap) wrap.classList.add('visible');
+  document.getElementById('progress-wrap').classList.add('visible');
   document.body.classList.add('has-progress');
 
   let maxScrollPercent = 0;
+  const blocksSeen = new Set();
+  let startTime = Date.now(); 
 
   lastProgress = getReadingProgress(lessonId, getUserKey());
   if (lastProgress) {
+    if (Array.isArray(lastProgress.read)) lastProgress.read.forEach(i => blocksSeen.add(i));
     const oldScrollDone = typeof lastProgress.scrollPercent === 'number' && lastProgress.scrollPercent >= 100;
     if (oldScrollDone) {
       lastProgress = null;
       clearReadingProgress(lessonId, getUserKey());
     } else if (typeof lastProgress.scrollPercent === 'number') {
       maxScrollPercent = lastProgress.scrollPercent;
+    } else {
+      maxScrollPercent = Math.round((lastProgress.read.length / total) * 100);
     }
   }
 
-  currentProgress = { read: [], total, scrollPercent: maxScrollPercent };
+  currentProgress = {
+    read: Array.from(blocksSeen).sort((a, b) => a - b),
+    total, scrollPercent: maxScrollPercent
+  };
   updateProgressUI(maxScrollPercent);
+
+  blocks.forEach(b => {
+    const idx = parseInt(b.dataset.blockIndex, 10);
+    if (blocksSeen.has(idx)) b.classList.add('is-read');
+  });
 
   if (lastProgress && !resumeOffered) {
     resumeOffered = true;
     showResumePanel(lastProgress, total);
   }
 
+  let rafPending = false;
   let lastPersistTs = 0;
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
-    if (isResetting) return;
     if (maxScrollPercent <= 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
     lastPersistTs = now;
 
-    const data = { read: [], total, scrollPercent: maxScrollPercent };
+    const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
     if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
     saveReadingProgress(lessonId, data, getUserKey());
   }
 
   function checkVisibleBlocks() {
-    if (isResetting) return;
-    const newPct = computeScrollPercent();
-    
-    if (newPct > maxScrollPercent) { 
-      maxScrollPercent = newPct; 
-      currentProgress.scrollPercent = maxScrollPercent;
-      updateProgressUI(maxScrollPercent);
-      persistProgress();
-    }
+    // УБРАНА 3-СЕКУНДНАЯ ЗАДЕРЖКА, ЧТОБЫ ПОЛОСКА ДВИГАЛАСЬ СРАЗУ
+    rafPending = false;
+    const vh = window.innerHeight;
+    let changed = false;
 
-    if (maxScrollPercent >= 100 && !awardedReadXP[lessonId]) {
-      awardedReadXP[lessonId] = true;
-      if (typeof Achievements !== 'undefined') {
-        const user = getCurrentUser();
-        if (user && user.email) {
-          Achievements.addXP(10, user.email);
-          Achievements.checkAchievements(user.email);
+    blocks.forEach(b => {
+      const rect = b.getBoundingClientRect();
+      if (rect.top < vh && rect.bottom > 0) {
+        const idx = parseInt(b.dataset.blockIndex, 10);
+        if (!blocksSeen.has(idx)) {
+          blocksSeen.add(idx);
+          b.classList.add('is-read'); // Визуально блок подсвечивается, если надо
+          changed = true;
+        }
+      }
+    });
+
+    const newPct = computeScrollPercent();
+    if (newPct > maxScrollPercent) { maxScrollPercent = newPct; changed = true; }
+
+    if (changed) {
+      currentProgress = {
+        read: Array.from(blocksSeen).sort((a, b) => a - b),
+        total, scrollPercent: maxScrollPercent
+      };
+      updateProgressUI(maxScrollPercent);
+      lastPersistTs = 0;
+      persistProgress();
+
+      if (maxScrollPercent >= 100 && !__xpAwardedForRead) {
+        __xpAwardedForRead = true;
+        if (typeof Achievements !== 'undefined') {
+          const user = getCurrentUser();
+          if (user && user.email) {
+            Achievements.addXP(10, user.email);
+            Achievements.checkAchievements(user.email);
+          }
         }
       }
     }
   }
 
   function scheduleCheck() {
+    if (rafPending) return;
+    rafPending = true;
     requestAnimationFrame(checkVisibleBlocks);
   }
 
   window.__checkVisibleBlocks = checkVisibleBlocks;
-  
+  [80, 300, 800, 2000].forEach(t => setTimeout(checkVisibleBlocks, t));
+
+  window.addEventListener('load', () => {
+    checkVisibleBlocks();
+    setTimeout(checkVisibleBlocks, 100);
+    setTimeout(checkVisibleBlocks, 500);
+  });
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { checkVisibleBlocks(); setTimeout(checkVisibleBlocks, 200); });
+  }
+
+  if (window.ResizeObserver) {
+    if (resizeObserver) resizeObserver.disconnect();
+    resizeObserver = new ResizeObserver(() => scheduleCheck());
+    try { resizeObserver.observe(document.body); resizeObserver.observe(lectureContentEl); } catch (e) {}
+  }
+
+  if (ioObserver) ioObserver.disconnect();
+  ioObserver = new IntersectionObserver((entries) => {
+    let hasIntersect = false;
+    entries.forEach(entry => { if (entry.isIntersecting) hasIntersect = true; });
+    if (hasIntersect) scheduleCheck();
+  }, { root: null, threshold: [0, 0.01, 0.1, 0.25, 0.5, 0.75, 1], rootMargin: '200px 0px 200px 0px' });
+  blocks.forEach(b => ioObserver.observe(b));
+
   if (scrollHandler) window.removeEventListener('scroll', scrollHandler);
   scrollHandler = () => scheduleCheck();
   window.addEventListener('scroll', scrollHandler, { passive: true });
-  
-  checkVisibleBlocks();
+  window.addEventListener('scrollend', checkVisibleBlocks, { passive: true });
+  window.addEventListener('resize', scheduleCheck);
 
   window.addEventListener('beforeunload', () => {
-    if (isResetting) return;
     if (maxScrollPercent > 0) {
-      const data = { read: [], total, scrollPercent: maxScrollPercent };
+      const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
       if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
       saveReadingProgress(lessonId, data, getUserKey());
     }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { lastPersistTs = 0; persistProgress(); }
   });
 }
 
 function showResumePanel(savedProgress, total) {
   const panel = document.getElementById('resume-panel');
   if (!panel) return;
-  let percent = savedProgress.scrollPercent || 0;
-  let firstUnread = Math.floor((percent / 100) * total);
-  if (firstUnread >= total) firstUnread = total - 1;
+  let firstUnread = 0;
+  for (let i = 0; i < total; i++) {
+    if (!savedProgress.read.includes(i)) { firstUnread = i; break; }
+  }
+  let percent = 0;
+  if (typeof savedProgress.scrollPercent === 'number') percent = savedProgress.scrollPercent;
+  else percent = Math.round((savedProgress.read.length / total) * 100);
 
   document.getElementById('resume-percent').textContent = percent + '%';
   document.getElementById('resume-block-num').textContent = (firstUnread + 1);
   document.getElementById('resume-block-total').textContent = total;
   setTimeout(() => panel.classList.add('visible'), 700);
 }
-
 function dismissResumePanel() {
   const panel = document.getElementById('resume-panel');
   if (panel) panel.classList.remove('visible');
 }
-
 function restoreProgress() {
   if (!lastProgress) return;
   const lectureContentEl = document.getElementById('lecture-content');
   const total = currentProgress.total || lectureContentEl.querySelectorAll('.block-anchor').length;
 
-  currentProgress.scrollPercent = lastProgress.scrollPercent || 0;
+  const readArr = Array.isArray(lastProgress.read) ? [...lastProgress.read] : [];
+  currentProgress = {
+    read: readArr, total,
+    scrollPercent: (typeof lastProgress.scrollPercent === 'number') ? lastProgress.scrollPercent : 0
+  };
+
+  lectureContentEl.querySelectorAll('.block-anchor').forEach(b => {
+    const idx = parseInt(b.dataset.blockIndex, 10);
+    if (currentProgress.read.includes(idx)) b.classList.add('is-read');
+  });
+
   updateProgressUI(currentProgress.scrollPercent);
+
+  let firstUnread = 0;
+  for (let i = 0; i < total; i++) { if (!currentProgress.read.includes(i)) { firstUnread = i; break; } }
+  const el = document.getElementById('block-' + firstUnread);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.style.transition = 'background 0.6s';
+    el.style.background = 'rgba(99, 102, 241, 0.2)';
+    setTimeout(() => { el.style.background = ''; }, 1800);
+  }
+
   dismissResumePanel();
-
-  setTimeout(() => {
-    const el = document.documentElement;
-    const scrollable = el.scrollHeight - el.clientHeight;
-    if (scrollable > 0) {
-      const targetScroll = Math.round(scrollable * (currentProgress.scrollPercent / 100));
-      window.scrollTo({ top: targetScroll, behavior: 'smooth' });
-    }
-  }, 100);
-
   showToast('Прогресс восстановлен!');
   if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 500);
 }
-
 function startFromScratch() {
-  isResetting = true; 
   const lectureContentEl = document.getElementById('lecture-content');
   const lessonId = new URLSearchParams(window.location.search).get('id');
   const total = lectureContentEl.querySelectorAll('.block-anchor').length;
-  
   currentProgress = { read: [], total, scrollPercent: 0 };
   clearReadingProgress(lessonId, getUserKey());
-  
-  try {
-    const all = JSON.parse(localStorage.getItem('last_reading_progress') || '{}');
-    if (all[getUserKey()] && all[getUserKey()][lessonId]) {
-      delete all[getUserKey()][lessonId];
-      localStorage.setItem('last_reading_progress', JSON.stringify(all));
-    }
-  } catch(e) {}
-
+  lectureContentEl.querySelectorAll('.block-anchor').forEach(el => el.classList.remove('is-read'));
   updateProgressUI(0);
   dismissResumePanel();
-  
-  const cleanUrl = window.location.href.split('#')[0];
-  window.location.href = cleanUrl;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('Начинаем с начала!');
 }
 
 function incrementViews(lessonId) {
@@ -338,7 +398,7 @@ function shareLesson() {
 }
 
 /* ============================================================
-   ТЕСТЫ — ВСЁ ВОЗВРАЩЕНО В ИСХОДНОЕ СОСТОЯНИЕ
+   ТЕСТЫ
    ============================================================ */
 let studentFIO = '';
 let currentStep = 0;
@@ -358,6 +418,7 @@ function getAttemptNumber(lessonId, userEmail) {
 
 function startTestProcess() {
   const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+  
   if (!currentUser) {
     showToast('Для прохождения теста необходимо авторизоваться.', true);
     window.location.href = 'index.html';
@@ -367,6 +428,7 @@ function startTestProcess() {
     showToast('Пожалуйста, заполните ФИО в профиле.', true);
     return;
   }
+
   studentFIO = currentUser.fio;
   document.getElementById('fio-start-block').style.display = 'none';
   document.getElementById('test-process-block').style.display = 'block';
@@ -377,7 +439,7 @@ function startTestProcess() {
 function renderStep() {
   const total = testItem.questions.length;
   const q = testItem.questions[currentStep];
-  document.getElementById('progress-fill-test').style.width = `${(currentStep / total) * 100}%`;
+  document.getElementById('progress-fill-test').style.width = `${((currentStep + 1) / total) * 100}%`;
   document.getElementById('step-counter-text').textContent = `Вопрос ${currentStep + 1} из ${total}`;
 
   const progressEl = document.getElementById('test-progress-text');
@@ -736,6 +798,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!item) {
     document.getElementById('lecture-title').textContent = 'Лекция не найдена';
+    const favBtn = document.getElementById('fav-btn');
+    const shareBtn = document.getElementById('share-btn');
+    if (favBtn) favBtn.style.display = 'none';
+    if (shareBtn) shareBtn.style.display = 'none';
     return;
   }
 
@@ -746,25 +812,19 @@ document.addEventListener('DOMContentLoaded', () => {
   if (item.subject) metaHtml += `<span class="lesson-subject">${escapeHtml(item.subject)}</span>`;
   metaHtml += `<span class="lesson-views">👁 <b>${item.views || 0}</b> просмотров</span>`;
   
+  // ВСТАВЛЯЕМ ЕДИНУЮ МЕТКУ В ШАПКУ
   if (metaRow) {
-    metaRow.innerHTML = metaHtml + `<span id="lecture-read-badge" class="badge-lecture-read" style="display: none;">✓ Прочитано</span>`;
+    metaRow.innerHTML = metaHtml + `<span id="lecture-read-badge" style="display: none; background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; margin-left: auto;">✓ Прочитано</span>`;
   }
 
   updateFavButton(currentLessonId);
-  const favBtn = document.getElementById('fav-btn');
-  if (favBtn) favBtn.setAttribute('onclick', `toggleFavoriteFromLesson('${escapeHtml(currentLessonId)}')`);
+  document.getElementById('fav-btn').setAttribute('onclick', `toggleFavoriteFromLesson('${escapeHtml(currentLessonId)}')`);
 
   incrementViews(currentLessonId);
-  
-  // ВАЖНО: Оборачиваем прогресс в try-catch, чтобы тесты рендерились в любом случае
-  try {
-    initReadingProgress();
-  } catch (e) {
-    console.error("Ошибка инициализации прогресса:", e);
-  }
+  initReadingProgress();
 
   const hash = window.location.hash;
-  if (hash && /^#block-\d+$/.test(hash) && !isResetting) {
+  if (hash && /^#block-\d+$/.test(hash)) {
     setTimeout(() => {
       const el = document.querySelector(hash);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -810,6 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
       } else {
         const block = document.getElementById('test-block');
+
         if (item.deadline) {
           const today = localTodayISO();
           if (today > item.deadline) {
@@ -824,6 +885,7 @@ document.addEventListener('DOMContentLoaded', () => {
             block.insertBefore(info, block.firstChild);
           }
         }
+
         if (item.allowRetakes && prevResults.length > 0) {
           const info = document.createElement('div');
           info.style.cssText = 'padding:8px 12px; background: rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); border-radius:8px; color:#a5b4fc; font-size:13px; font-weight:600; margin-bottom:16px;';
