@@ -8,8 +8,10 @@ let resumeOffered = false;
 let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
-let isResetting = false; // ФЛАГ: запрещает сохранять прогресс при сбросе
+
+// ФИКС 1: Переменная для запоминания XP для КАЖДОЙ лекции (а не глобально)
 const awardedReadXP = {};
+let isResetting = false; // ФИКС 2: Флаг, чтобы при сбросе не сохранялся старый прогресс
 
 if (typeof looksLikeHtml !== 'function') {
   window.looksLikeHtml = function (str) {
@@ -29,7 +31,7 @@ if (typeof sanitizeRichHtml !== 'function') {
 function computeScrollPercent() {
   const el = document.scrollingElement || document.documentElement;
   const scrollable = el.scrollHeight - el.clientHeight;
-  if (scrollable <= 0) return 0; // Если нечего скроллить, прогресс 0
+  if (scrollable <= 0) return 0; 
   const pct = (el.scrollTop / scrollable) * 100;
   return Math.min(100, Math.max(0, Math.round(pct)));
 }
@@ -41,7 +43,7 @@ function updateProgressUI(percent) {
   if (pctEl) pctEl.textContent = percent + '%';
 }
 
-/* ---------- Рендер блоков ---------- */
+/* ---------- Рендер блоков + глоссарий ---------- */
 function renderLessonContent(container, lesson) {
   container.innerHTML = '';
   const blocks = (lesson.blocks && lesson.blocks.length)
@@ -126,34 +128,25 @@ function initReadingProgress() {
   if (total === 0) return;
 
   const lessonId = new URLSearchParams(window.location.search).get('id');
-  const isReset = new URLSearchParams(window.location.search).get('reset') === '1';
-
-  // Если мы только что нажали "Начать заново" — чистим URL и игнорируем старый прогресс
-  if (isReset) {
-    const url = new URL(window.location.href);
-    url.searchParams.delete('reset');
-    window.history.replaceState({}, '', url.toString());
-  }
 
   document.getElementById('progress-wrap').classList.add('visible');
   document.body.classList.add('has-progress');
 
   let maxScrollPercent = 0;
   const blocksSeen = new Set();
+  let startTime = Date.now(); 
 
-  if (!isReset) {
-    lastProgress = getReadingProgress(lessonId, getUserKey());
-    if (lastProgress) {
-      if (Array.isArray(lastProgress.read)) lastProgress.read.forEach(i => blocksSeen.add(i));
-      const oldScrollDone = typeof lastProgress.scrollPercent === 'number' && lastProgress.scrollPercent >= 100;
-      if (oldScrollDone) {
-        lastProgress = null;
-        clearReadingProgress(lessonId, getUserKey());
-      } else if (typeof lastProgress.scrollPercent === 'number') {
-        maxScrollPercent = lastProgress.scrollPercent;
-      } else {
-        maxScrollPercent = Math.round((lastProgress.read.length / total) * 100);
-      }
+  lastProgress = getReadingProgress(lessonId, getUserKey());
+  if (lastProgress) {
+    if (Array.isArray(lastProgress.read)) lastProgress.read.forEach(i => blocksSeen.add(i));
+    const oldScrollDone = typeof lastProgress.scrollPercent === 'number' && lastProgress.scrollPercent >= 100;
+    if (oldScrollDone) {
+      lastProgress = null;
+      clearReadingProgress(lessonId, getUserKey());
+    } else if (typeof lastProgress.scrollPercent === 'number') {
+      maxScrollPercent = lastProgress.scrollPercent;
+    } else {
+      maxScrollPercent = Math.round((lastProgress.read.length / total) * 100);
     }
   }
 
@@ -178,7 +171,7 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
-    if (isResetting) return; // Не сохраняем при сбросе
+    if (isResetting) return; // Запрещаем сохранять, если нажали "Начать заново"
     if (maxScrollPercent <= 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
@@ -190,6 +183,7 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
+    // Убрал проверку на 3 секунды, чтобы полоска двигалась сразу от скролла
     if (isResetting) return;
     rafPending = false;
     const vh = window.innerHeight;
@@ -209,6 +203,8 @@ function initReadingProgress() {
 
     const newPct = computeScrollPercent();
     if (newPct > maxScrollPercent) { maxScrollPercent = newPct; changed = true; }
+
+    // ФИКС 3: Убрал принудительные 100% для коротких страниц. Только чистый скролл.
 
     if (changed) {
       currentProgress = {
@@ -272,7 +268,7 @@ function initReadingProgress() {
   window.addEventListener('resize', scheduleCheck);
 
   window.addEventListener('beforeunload', () => {
-    if (isResetting) return; // Не сохраняем при сбросе!
+    if (isResetting) return; // Не сохраняем, если нажали "Начать заново"
     if (maxScrollPercent > 0) {
       const data = { read: [...currentProgress.read], total, scrollPercent: maxScrollPercent };
       if (maxScrollPercent >= 100) data.completedAt = new Date().toISOString();
@@ -337,27 +333,23 @@ function restoreProgress() {
   if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 500);
 }
 
-// ФИКС: Теперь при сбросе мы запрещаем сохранять старый прогресс
 function startFromScratch() {
-  isResetting = true;
+  isResetting = true; // Включаем блокировку сохранения
+  const lectureContentEl = document.getElementById('lecture-content');
   const lessonId = new URLSearchParams(window.location.search).get('id');
-  
-  // Жестко чистим localStorage
-  try {
-    const all = JSON.parse(localStorage.getItem('last_reading_progress') || '{}');
-    if (all[getUserKey()] && all[getUserKey()][lessonId]) {
-      delete all[getUserKey()][lessonId];
-      localStorage.setItem('last_reading_progress', JSON.stringify(all));
-    }
-  } catch(e) {}
-  
-  // Шлем на сервер
+  const total = lectureContentEl.querySelectorAll('.block-anchor').length;
+  currentProgress = { read: [], total, scrollPercent: 0 };
   clearReadingProgress(lessonId, getUserKey());
-
-  // Перезагружаем с флагом reset, чтобы скрипт не подхватил кэш сервера при загрузке
-  const url = new URL(window.location.href);
-  url.searchParams.set('reset', '1');
-  window.location.href = url.toString();
+  lectureContentEl.querySelectorAll('.block-anchor').forEach(el => el.classList.remove('is-read'));
+  updateProgressUI(0);
+  dismissResumePanel();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('Начинаем с начала!');
+  
+  // Перезагружаем страницу принудительно, чтобы сбросить все внутренние переменные
+  setTimeout(() => {
+    window.location.reload();
+  }, 100);
 }
 
 function incrementViews(lessonId) {
@@ -417,7 +409,7 @@ function shareLesson() {
 }
 
 /* ============================================================
-   ТЕСТ (ОСТАВЛЯЕМ БЕЗ ИЗМЕНЕНИЙ)
+   ТЕСТ
    ============================================================ */
 let studentFIO = '';
 let currentStep = 0;
@@ -446,7 +438,6 @@ function startTestProcess() {
     showToast('Пожалуйста, заполните ФИО в профиле.', true);
     return;
   }
-
   studentFIO = currentUser.fio;
   document.getElementById('fio-start-block').style.display = 'none';
   document.getElementById('test-process-block').style.display = 'block';
@@ -459,16 +450,11 @@ function renderStep() {
   const q = testItem.questions[currentStep];
   document.getElementById('progress-fill-test').style.width = `${((currentStep + 1) / total) * 100}%`;
   document.getElementById('step-counter-text').textContent = `Вопрос ${currentStep + 1} из ${total}`;
-
-  const progressEl = document.getElementById('test-progress-text');
-  if (progressEl) progressEl.textContent = `Отвечено: ${currentStep} из ${total}`;
-
   document.getElementById('step-question-text').textContent = q.text;
 
   const optsContainer = document.getElementById('step-options-container');
   optsContainer.innerHTML = '';
   currentSelected = [];
-
   const nextBtn = document.getElementById('next-btn');
   nextBtn.disabled = true;
   nextBtn.textContent = (currentStep === total - 1) ? 'Завершить тест' : 'Подтвердить ответ';
@@ -816,10 +802,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!item) {
     document.getElementById('lecture-title').textContent = 'Лекция не найдена';
-    const favBtn = document.getElementById('fav-btn');
-    const shareBtn = document.getElementById('share-btn');
-    if (favBtn) favBtn.style.display = 'none';
-    if (shareBtn) shareBtn.style.display = 'none';
     return;
   }
 
@@ -884,7 +866,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
       } else {
         const block = document.getElementById('test-block');
-
         if (item.deadline) {
           const today = localTodayISO();
           if (today > item.deadline) {
@@ -899,7 +880,6 @@ document.addEventListener('DOMContentLoaded', () => {
             block.insertBefore(info, block.firstChild);
           }
         }
-
         if (item.allowRetakes && prevResults.length > 0) {
           const info = document.createElement('div');
           info.style.cssText = 'padding:8px 12px; background: rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); border-radius:8px; color:#a5b4fc; font-size:13px; font-weight:600; margin-bottom:16px;';
