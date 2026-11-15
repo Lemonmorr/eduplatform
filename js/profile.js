@@ -13,36 +13,17 @@ function updateUI() {
   const phone = user.phone || 'Не указан';
   const role  = user.role || 'Преподаватель';
 
-  // Безопасное обновление элементов (проверяем, существует ли элемент)
-  const elProfileName = document.getElementById('profile-name') || document.getElementById('profile-fio');
-  if (elProfileName) elProfileName.textContent = name;
+  document.getElementById('profile-name').textContent  = name;
+  document.getElementById('profile-role').textContent  = role;
+  document.getElementById('info-name').textContent     = name;
+  document.getElementById('info-email').textContent    = email;
+  document.getElementById('info-phone').textContent    = phone;
+  document.getElementById('avatar-letter').textContent = name.charAt(0).toUpperCase();
 
-  const elProfileRole = document.getElementById('profile-role');
-  if (elProfileRole) elProfileRole.textContent = role;
+  document.getElementById('edit-name').value  = name;
+  document.getElementById('edit-email').value = email;
+  document.getElementById('edit-phone').value = phone === 'Не указан' ? '' : phone;
 
-  const elInfoName = document.getElementById('info-name');
-  if (elInfoName) elInfoName.textContent = name;
-
-  const elInfoEmail = document.getElementById('info-email') || document.getElementById('profile-email');
-  if (elInfoEmail) elInfoEmail.textContent = email;
-
-  const elInfoPhone = document.getElementById('info-phone');
-  if (elInfoPhone) elInfoPhone.textContent = phone;
-
-  const elAvatarLetter = document.getElementById('avatar-letter') || document.getElementById('profile-avatar');
-  if (elAvatarLetter) elAvatarLetter.textContent = name.charAt(0).toUpperCase();
-
-  // Заполнение полей для редактирования (если они есть в HTML)
-  const elEditName = document.getElementById('edit-name');
-  if (elEditName) elEditName.value = name;
-
-  const elEditEmail = document.getElementById('edit-email');
-  if (elEditEmail) elEditEmail.value = email;
-
-  const elEditPhone = document.getElementById('edit-phone');
-  if (elEditPhone) elEditPhone.value = phone === 'Не указан' ? '' : phone;
-
-  // Рендер достижений
   if (typeof Achievements !== 'undefined') {
     Achievements.checkAchievements(user.email);
     Achievements.renderXPWidget('xp-widget-container');
@@ -50,28 +31,23 @@ function updateUI() {
   }
 }
 
-// Безопасное переключение режимов (если вдруг их нет в HTML — ничего не сломается)
 function enableEdit() {
-  const view = document.getElementById('view-mode');
-  const edit = document.getElementById('edit-mode');
-  if (view) view.style.display = 'none';
-  if (edit) edit.style.display = 'block';
+  document.getElementById('view-mode').style.display = 'none';
+  document.getElementById('edit-mode').style.display = 'block';
 }
 
 function disableEdit() {
-  const view = document.getElementById('view-mode');
-  const edit = document.getElementById('edit-mode');
-  if (edit) edit.style.display = 'none';
-  if (view) view.style.display = 'block';
+  document.getElementById('edit-mode').style.display = 'none';
+  document.getElementById('view-mode').style.display = 'block';
 }
 
 function saveProfile() {
   const user = getCurrentUser();
   if (!user) return;
 
-  const newName  = document.getElementById('edit-name')?.value.trim();
-  const newEmail = document.getElementById('edit-email')?.value.trim();
-  const newPhone = document.getElementById('edit-phone')?.value.trim();
+  const newName  = document.getElementById('edit-name').value.trim();
+  const newEmail = document.getElementById('edit-email').value.trim();
+  const newPhone = document.getElementById('edit-phone').value.trim();
 
   if (!newName || !newEmail) {
     showToast('Имя и Email обязательны для заполнения!', true);
@@ -98,6 +74,107 @@ function saveProfile() {
   if (typeof refreshAuthUI === 'function') refreshAuthUI();
 
   showToast('Профиль сохранён');
+}
+
+const BACKUP_KEYS = [
+  'my_lessons',
+  'test_results',
+  'groups',
+  'usersDB',
+  'favorites',
+  'last_reading_progress',
+  'glossary',
+  'user_achievements',
+  'user_xp'
+];
+
+function exportAllData() {
+  const payload = {
+    __format: 'eduplatform-backup',
+    __version: 1,
+    exportedAt: new Date().toISOString(),
+    data: {}
+  };
+
+  BACKUP_KEYS.forEach(key => {
+    const raw = localStorage.getItem(key);
+    if (raw !== null) {
+      try { payload.data[key] = JSON.parse(raw); }
+      catch (e) { payload.data[key] = raw; }
+    }
+  });
+
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = `eduplatform-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  showToast('Файл сохранён');
+}
+
+function handleImportFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    let parsed;
+    try {
+      parsed = JSON.parse(e.target.result);
+    } catch (err) {
+      showToast('Некорректный JSON-файл', true);
+      input.value = '';
+      return;
+    }
+
+    if (!parsed || parsed.__format !== 'eduplatform-backup' || !parsed.data) {
+      showToast('Это не файл бэкапа EduPlatform', true);
+      input.value = '';
+      return;
+    }
+
+    const stat = [];
+    BACKUP_KEYS.forEach(key => {
+      const v = parsed.data[key];
+      if (v === undefined) return;
+      if (Array.isArray(v)) stat.push(`${key}: ${v.length}`);
+      else if (v && typeof v === 'object') stat.push(`${key}: ${Object.keys(v).length}`);
+    });
+
+    const summary = stat.length ? stat.join(', ') : 'нет данных';
+    const msg =
+      `Импортировать бэкап от ${new Date(parsed.exportedAt || Date.now()).toLocaleString('ru-RU')}? ` +
+      `Текущие данные в браузере будут перезаписаны. ` +
+      `Содержимое: ${summary}`;
+
+    showConfirm(msg, () => {
+      try {
+        BACKUP_KEYS.forEach(key => {
+          if (parsed.data[key] === undefined) return;
+          localStorage.setItem(key, JSON.stringify(parsed.data[key]));
+        });
+        showToast('Данные импортированы. Перезагрузка...');
+        setTimeout(() => window.location.reload(), 900);
+      } catch (err) {
+        showToast('Не удалось записать данные: возможно, превышен лимит хранилища', true);
+      }
+    });
+
+    input.value = '';
+  };
+  reader.onerror = () => {
+    showToast('Не удалось прочитать файл', true);
+    input.value = '';
+  };
+  reader.readAsText(file);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
