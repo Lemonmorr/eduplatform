@@ -8,7 +8,9 @@ let resumeOffered = false;
 let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
-let __xpAwardedForRead = false;
+
+// ФИКС: XP теперь запоминается для каждой лекции отдельно
+const awardedReadXP = {};
 
 if (typeof looksLikeHtml !== 'function') {
   window.looksLikeHtml = function (str) {
@@ -28,7 +30,10 @@ if (typeof sanitizeRichHtml !== 'function') {
 function computeScrollPercent() {
   const el = document.scrollingElement || document.documentElement;
   const scrollable = el.scrollHeight - el.clientHeight;
-  if (scrollable <= 0) return 0; 
+  
+  // Если лекция короткая (нечего скроллить), возвращаем 100, чтобы она засчиталась
+  if (scrollable <= 0) return 100; 
+  
   const pct = (el.scrollTop / scrollable) * 100;
   return Math.min(100, Math.max(0, Math.round(pct)));
 }
@@ -168,7 +173,6 @@ function initReadingProgress() {
   const PERSIST_INTERVAL_MS = 300;
 
   function persistProgress() {
-    // Убрал блокировку 3 секунды, чтобы сохранялось сразу
     if (maxScrollPercent <= 0) return;
     const now = Date.now();
     if (now - lastPersistTs < PERSIST_INTERVAL_MS) return;
@@ -180,8 +184,6 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
-    // УБРАЛ ЖЕСТКИЙ RETURN (if (Date.now() - startTime < 3000) return;)
-    // Теперь полоска двигается моментально
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -201,7 +203,6 @@ function initReadingProgress() {
     const newPct = computeScrollPercent();
     if (newPct > maxScrollPercent) { maxScrollPercent = newPct; changed = true; }
 
-    // УБРАЛ принудительное 100%, теперь только скролл
     if (changed) {
       currentProgress = {
         read: Array.from(blocksSeen).sort((a, b) => a - b),
@@ -211,9 +212,9 @@ function initReadingProgress() {
       lastPersistTs = 0;
       persistProgress();
 
-      // XP даем только когда реально докрутил до конца
-      if (maxScrollPercent >= 100 && !__xpAwardedForRead) {
-        __xpAwardedForRead = true;
+      // ФИКС: XP дается для каждой лекции отдельно
+      if (maxScrollPercent >= 100 && !awardedReadXP[lessonId]) {
+        awardedReadXP[lessonId] = true;
         if (typeof Achievements !== 'undefined') {
           const user = getCurrentUser();
           if (user && user.email) {
@@ -328,17 +329,13 @@ function restoreProgress() {
   showToast('Прогресс восстановлен!');
   if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 500);
 }
+
+// ФИКС: Кнопка "Начать заново" теперь просто перезагружает страницу с нуля
 function startFromScratch() {
-  const lectureContentEl = document.getElementById('lecture-content');
   const lessonId = new URLSearchParams(window.location.search).get('id');
-  const total = lectureContentEl.querySelectorAll('.block-anchor').length;
-  currentProgress = { read: [], total, scrollPercent: 0 };
   clearReadingProgress(lessonId, getUserKey());
-  lectureContentEl.querySelectorAll('.block-anchor').forEach(el => el.classList.remove('is-read'));
-  updateProgressUI(0);
-  dismissResumePanel();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  showToast('Начинаем с начала!');
+  // Убираем хэш из URL и перезагружаем, чтобы сбросить все переменные
+  window.location.href = window.location.href.split('#')[0];
 }
 
 function incrementViews(lessonId) {
@@ -398,7 +395,7 @@ function shareLesson() {
 }
 
 /* ============================================================
-   ТЕСТ
+   ТЕСТ (ОСТАВЛЯЕМ БЕЗ ИЗМЕНЕНИЙ)
    ============================================================ */
 let studentFIO = '';
 let currentStep = 0;
@@ -418,7 +415,6 @@ function getAttemptNumber(lessonId, userEmail) {
 
 function startTestProcess() {
   const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
-  
   if (!currentUser) {
     showToast('Для прохождения теста необходимо авторизоваться.', true);
     window.location.href = 'index.html';
