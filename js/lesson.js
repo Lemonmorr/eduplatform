@@ -9,7 +9,7 @@ let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
 let __xpAwardedForRead = false;
-let maxScrollPercent = 0; // ВЫНОСИМ НАВЕРХ, ЧТОБЫ СБРАСЫВАТЬ
+let maxScrollPercent = 0; // ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ
 
 if (typeof looksLikeHtml !== 'function') {
   window.looksLikeHtml = function (str) {
@@ -132,7 +132,7 @@ function initReadingProgress() {
   document.getElementById('progress-wrap').classList.add('visible');
   document.body.classList.add('has-progress');
 
-  maxScrollPercent = 0; // СБРОС ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
+  maxScrollPercent = 0; 
   const blocksSeen = new Set();
   let startTime = Date.now(); 
 
@@ -182,7 +182,6 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
-    // Убрали задержку, полоска двигается моментально
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -291,66 +290,45 @@ function showResumePanel(savedProgress, total) {
   document.getElementById('resume-block-total').textContent = total;
   setTimeout(() => panel.classList.add('visible'), 700);
 }
+
 function dismissResumePanel() {
   const panel = document.getElementById('resume-panel');
   if (panel) panel.classList.remove('visible');
 }
+
+// ФИКС: Скролл по пикселям, а не по блокам (работает всегда идеально)
 function restoreProgress() {
   if (!lastProgress) return;
-  const lectureContentEl = document.getElementById('lecture-content');
-  const total = currentProgress.total || lectureContentEl.querySelectorAll('.block-anchor').length;
-
-  const readArr = Array.isArray(lastProgress.read) ? [...lastProgress.read] : [];
-  currentProgress = {
-    read: readArr, total,
-    scrollPercent: (typeof lastProgress.scrollPercent === 'number') ? lastProgress.scrollPercent : 0
-  };
-
-  lectureContentEl.querySelectorAll('.block-anchor').forEach(b => {
-    const idx = parseInt(b.dataset.blockIndex, 10);
-    if (currentProgress.read.includes(idx)) b.classList.add('is-read');
-  });
-
-  updateProgressUI(currentProgress.scrollPercent);
-
-  let firstUnread = 0;
-  for (let i = 0; i < total; i++) { if (!currentProgress.read.includes(i)) { firstUnread = i; break; } }
-  const el = document.getElementById('block-' + firstUnread);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    el.style.transition = 'background 0.6s';
-    el.style.background = 'rgba(99, 102, 241, 0.2)';
-    setTimeout(() => { el.style.background = ''; }, 1800);
-  }
-
+  
+  const percent = lastProgress.scrollPercent || 0;
+  updateProgressUI(percent);
   dismissResumePanel();
-  showToast('Прогресс восстановлен!');
-  if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 500);
+
+  setTimeout(() => {
+    const el = document.documentElement;
+    const scrollable = el.scrollHeight - el.clientHeight;
+    if (scrollable > 0) {
+      const targetScroll = Math.round(scrollable * (percent / 100));
+      window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    }
+    showToast('Прогресс восстановлен!');
+  }, 150);
 }
 
-// ФИКС: Никаких перезагрузок. Просто обнуляем глобальную переменную и чистим базу.
+// ФИКС: Сброс без перезагрузки страницы
 function startFromScratch() {
   const lectureContentEl = document.getElementById('lecture-content');
   const lessonId = new URLSearchParams(window.location.search).get('id');
   const total = lectureContentEl.querySelectorAll('.block-anchor').length;
   
-  // 1. Обнуляем глобальную переменную
   maxScrollPercent = 0;
-  
-  // 2. Сбрасываем объект прогресса
   currentProgress = { read: [], total, scrollPercent: 0 };
-  
-  // 3. Чистим базу
   clearReadingProgress(lessonId, getUserKey());
   
-  // 4. Убираем визуальные метки
   lectureContentEl.querySelectorAll('.block-anchor').forEach(el => el.classList.remove('is-read'));
-  
-  // 5. Обновляем UI
   updateProgressUI(0);
   dismissResumePanel();
   
-  // 6. Скроллим наверх
   window.scrollTo({ top: 0, behavior: 'smooth' });
   showToast('Начинаем с начала!');
 }
@@ -826,7 +804,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (item.subject) metaHtml += `<span class="lesson-subject">${escapeHtml(item.subject)}</span>`;
   metaHtml += `<span class="lesson-views">👁 <b>${item.views || 0}</b> просмотров</span>`;
   
-  // ВСТАВЛЯЕМ ЕДИНУЮ МЕТКУ В ШАПКУ
   if (metaRow) {
     metaRow.innerHTML = metaHtml + `<span id="lecture-read-badge" style="display: none; background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; margin-left: auto;">✓ Прочитано</span>`;
   }
