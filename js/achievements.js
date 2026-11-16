@@ -215,6 +215,91 @@ function renderAchievementsGrid(containerId, email) {
   container.innerHTML = html;
 }
 
+/* ---------- Топ пользователей (Leaderboard) ---------- */
+function renderLeaderboard(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const xpData = getXPData();
+  const usersDB = Storage.get('usersDB', []);
+  const currentUser = getCurrentUser();
+
+  let leaderboard = [];
+  
+  usersDB.forEach(user => {
+    const xpInfo = xpData[user.email] || { xp: 0, level: 1 };
+    leaderboard.push({
+      fio: user.fio || 'Без имени',
+      email: user.email,
+      role: user.role || 'Студент',
+      xp: xpInfo.xp,
+      level: xpInfo.level,
+      isCurrent: currentUser && currentUser.email === user.email
+    });
+  });
+
+  Object.keys(xpData).forEach(email => {
+    if (!leaderboard.some(u => u.email === email)) {
+      const xpInfo = xpData[email];
+      let fio = email;
+      if (currentUser && currentUser.email === email) fio = currentUser.fio;
+      else if (email === 'admin') fio = 'Администратор';
+      
+      leaderboard.push({
+        fio: fio,
+        email: email,
+        role: 'Пользователь',
+        xp: xpInfo.xp,
+        level: xpInfo.level,
+        isCurrent: currentUser && currentUser.email === email
+      });
+    }
+  });
+
+  leaderboard.sort((a, b) => {
+    if (b.level !== a.level) return b.level - a.level;
+    return b.xp - a.xp;
+  });
+
+  const topUsers = leaderboard.slice(0, 10);
+
+  if (topUsers.length === 0) {
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 14px;">Пока нет данных для рейтинга.</div>`;
+    return;
+  }
+
+  let html = '<div class="leaderboard-list">';
+  
+  topUsers.forEach((user, index) => {
+    const rank = index + 1;
+    let rankClass = '';
+    if (rank === 1) rankClass = 'rank-1';
+    else if (rank === 2) rankClass = 'rank-2';
+    else if (rank === 3) rankClass = 'rank-3';
+
+    const firstLetter = user.fio.trim().charAt(0).toUpperCase() || 'U';
+    const rowClass = user.isCurrent ? 'leaderboard-item is-current' : 'leaderboard-item';
+
+    html += `
+      <div class="${rowClass}">
+        <div class="leaderboard-rank ${rankClass}">${rank}</div>
+        <div class="leaderboard-avatar">${firstLetter}</div>
+        <div class="leaderboard-info">
+          <div class="leaderboard-name">${escapeHtml(user.fio)} ${user.isCurrent ? '(Вы)' : ''}</div>
+          <div class="leaderboard-role">${escapeHtml(user.role)}</div>
+        </div>
+        <div class="leaderboard-stats">
+          <div class="leaderboard-level">Ур. ${user.level}</div>
+          <div class="leaderboard-xp">${user.xp} XP</div>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
 /* ---------- Публичный API ---------- */
 window.Achievements = {
   getUserXP,
@@ -226,5 +311,6 @@ window.Achievements = {
   checkAchievements,
   renderXPWidget,
   renderAchievementsGrid,
+  renderLeaderboard,
   getAchievementsList
 };
