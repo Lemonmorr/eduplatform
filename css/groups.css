@@ -403,6 +403,47 @@ body { padding-top: 80px; padding-bottom: 30px; }
 }
 .assign-search-input:focus { border-color: #6366f1; }
 
+.assign-filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.assign-filter-row .assign-search-input {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.assign-date-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.assign-date-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 0 10px;
+  flex: 1;
+}
+
+.assign-date-input {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+  padding: 9px 0;
+  width: 100%;
+}
+
 .assign-tags-bar {
   display: flex;
   flex-wrap: wrap;
@@ -454,6 +495,8 @@ html.light-theme .assign-tabs { border-bottom-color: rgba(0,0,0,0.08); }
 html.light-theme .assign-tab { color: #64748b; }
 html.light-theme .assign-tab.active { color: #4f46e5; }
 html.light-theme .assign-search-input { background: #fff; color: #0f172a; border-color: rgba(0,0,0,0.15); }
+html.light-theme .assign-date-range { background: #fff; border-color: rgba(0,0,0,0.15); }
+html.light-theme .assign-date-input { color: #0f172a; }
 html.light-theme .assign-tag-chip { background: rgba(99, 102, 241, 0.08); color: #4f46e5; border-color: rgba(99, 102, 241, 0.2); }
 html.light-theme .assign-tag-chip:hover { background: rgba(99, 102, 241, 0.15); }
 html.light-theme .assign-tag-chip.active { background: #6366f1; color: #fff; }
@@ -513,7 +556,7 @@ html.light-theme .assign-tag-chip.active { background: #6366f1; color: #fff; }
   .modal-content { padding: 20px 16px; max-height: 90vh; }
   .modal-content[style*="max-width: 800px"],
   .modal-content[style*="max-width: 600px"],
-  .modal-content[style*="max-width: 650px"] { max-width: 100% !important; }
+  .modal-content[style*="max-width: 700px"] { max-width: 100% !important; }
 
   /* Инфо группы */
   .group-details-info {
@@ -579,6 +622,9 @@ html.light-theme .assign-tag-chip.active { background: #6366f1; color: #fff; }
   /* Назначение лекций */
   .assign-item { padding: 12px; }
   .assign-item input[type="checkbox"] { width: 20px; height: 20px; }
+  
+  .assign-filter-row { flex-direction: column; gap: 8px; }
+  .assign-date-row { flex-direction: column; align-items: stretch; }
 }
 
 @media (max-width: 480px) {

@@ -12,6 +12,9 @@ let groupQrCurrentUrl = '';
 let assignSearchQuery = '';
 let assignOnlyMine = false;
 let assignActiveTags = new Set();
+let assignAuthorQuery = '';
+let assignDateFrom = '';
+let assignDateTo = '';
 
 let __lessonsCache = null;
 function getLessonsCached() {
@@ -630,9 +633,14 @@ function openAssignLessons(groupId) {
   assignSearchQuery = '';
   assignOnlyMine = false;
   assignActiveTags.clear();
+  assignAuthorQuery = '';
+  assignDateFrom = '';
+  assignDateTo = '';
   
-  const searchInput = document.getElementById('assign-search-input');
-  if (searchInput) searchInput.value = '';
+  document.getElementById('assign-search-input').value = '';
+  document.getElementById('assign-author-input').value = '';
+  document.getElementById('assign-date-from').value = '';
+  document.getElementById('assign-date-to').value = '';
   
   setAssignTab('all');
 
@@ -651,6 +659,17 @@ function setAssignTab(tab) {
 
 function onAssignSearch(val) {
   assignSearchQuery = val;
+  renderAssignLessonsList();
+}
+
+function onAssignAuthorInput(val) {
+  assignAuthorQuery = val.toLowerCase().trim();
+  renderAssignLessonsList();
+}
+
+function onAssignDateChange() {
+  assignDateFrom = document.getElementById('assign-date-from').value;
+  assignDateTo = document.getElementById('assign-date-to').value;
   renderAssignLessonsList();
 }
 
@@ -692,17 +711,36 @@ function renderAssignLessonsList() {
     if (!allTags.has(tag)) assignActiveTags.delete(tag);
   });
 
-  // 2. Поиск
+  // 2. Поиск по названию/предмету
   if (assignSearchQuery) {
     const q = assignSearchQuery.toLowerCase().trim();
     lessonsArr = lessonsArr.filter(l =>
       (l.title || '').toLowerCase().includes(q) ||
-      (l.subject || '').toLowerCase().includes(q) ||
-      (l.tags || []).join(' ').toLowerCase().includes(q)
+      (l.subject || '').toLowerCase().includes(q)
     );
   }
 
-  // 3. Теги
+  // 3. Поиск по автору (живой ввод)
+  if (assignAuthorQuery) {
+    lessonsArr = lessonsArr.filter(l => {
+      const authorName = (l.author || '').toLowerCase();
+      const authorEmail = (l.authorEmail || '').toLowerCase();
+      return authorName.includes(assignAuthorQuery) || authorEmail.includes(assignAuthorQuery);
+    });
+  }
+
+  // 4. Фильтр по диапазону дат
+  if (assignDateFrom || assignDateTo) {
+    lessonsArr = lessonsArr.filter(l => {
+      const date = l.createdAt; // Формат YYYY-MM-DD
+      if (!date) return false;
+      if (assignDateFrom && date < assignDateFrom) return false;
+      if (assignDateTo && date > assignDateTo) return false;
+      return true;
+    });
+  }
+
+  // 5. Фильтр по тегам
   if (assignActiveTags.size > 0) {
     lessonsArr = lessonsArr.filter(l =>
       Array.from(assignActiveTags).every(tag => (l.tags || []).includes(tag))
@@ -739,6 +777,7 @@ function renderAssignLessonsList() {
         <span class="assign-item-label">
           ${escapeHtml(l.title)}
           ${l.subject ? `<span class="assign-item-subject">${escapeHtml(l.subject)}</span>` : ''}
+          <span style="font-size:11px; color:#64748b; margin-left:8px;">${escapeHtml(l.author || 'Без автора')}</span>
         </span>
       </label>
     `;
