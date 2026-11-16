@@ -620,7 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ============================================================
-   МОДАЛКА НАЗНАЧЕНИЯ ЛЕКЦИЙ (С ФИЛЬТРАМИ)
+   МОДАЛКА НАЗНАЧЕНИЯ ЛЕКЦИЙ (С ФИЛЬТРАМИ И СБРОСОМ)
    ============================================================ */
 function openAssignLessons(groupId) {
   const group = groups[groupId];
@@ -630,18 +630,7 @@ function openAssignLessons(groupId) {
   tempAssignedLessons = [...(group.lessonIds || [])];
 
   // Сброс фильтров при открытии
-  assignSearchQuery = '';
-  assignOnlyMine = false;
-  assignActiveTags.clear();
-  assignAuthorQuery = '';
-  assignDateFrom = '';
-  assignDateTo = '';
-  
-  document.getElementById('assign-search-input').value = '';
-  document.getElementById('assign-author-input').value = '';
-  document.getElementById('assign-date-from').value = '';
-  document.getElementById('assign-date-to').value = '';
-  
+  resetAssignFilters(false);
   setAssignTab('all');
 
   openModal('assign-lessons-modal');
@@ -671,6 +660,37 @@ function onAssignDateChange() {
   assignDateFrom = document.getElementById('assign-date-from').value;
   assignDateTo = document.getElementById('assign-date-to').value;
   renderAssignLessonsList();
+}
+
+function clearAssignDates() {
+  document.getElementById('assign-date-from').value = '';
+  document.getElementById('assign-date-to').value = '';
+  assignDateFrom = '';
+  assignDateTo = '';
+  renderAssignLessonsList();
+}
+
+function resetAssignFilters(shouldRender = true) {
+  assignSearchQuery = '';
+  assignAuthorQuery = '';
+  assignDateFrom = '';
+  assignDateTo = '';
+  assignActiveTags.clear();
+  
+  const searchInp = document.getElementById('assign-search-input');
+  const authorInp = document.getElementById('assign-author-input');
+  const dateFrom = document.getElementById('assign-date-from');
+  const dateTo = document.getElementById('assign-date-to');
+
+  if (searchInp) searchInp.value = '';
+  if (authorInp) authorInp.value = '';
+  if (dateFrom) dateFrom.value = '';
+  if (dateTo) dateTo.value = '';
+
+  // Сбрасываем таб на "Все" (опционально, но логично при полном сбросе)
+  setAssignTab('all');
+  
+  if (shouldRender) renderAssignLessonsList();
 }
 
 function toggleAssignTag(tag) {
@@ -720,7 +740,7 @@ function renderAssignLessonsList() {
     );
   }
 
-  // 3. Поиск по автору (живой ввод)
+  // 3. Поиск по автору
   if (assignAuthorQuery) {
     lessonsArr = lessonsArr.filter(l => {
       const authorName = (l.author || '').toLowerCase();
@@ -732,7 +752,7 @@ function renderAssignLessonsList() {
   // 4. Фильтр по диапазону дат
   if (assignDateFrom || assignDateTo) {
     lessonsArr = lessonsArr.filter(l => {
-      const date = l.createdAt; // Формат YYYY-MM-DD
+      const date = l.createdAt;
       if (!date) return false;
       if (assignDateFrom && date < assignDateFrom) return false;
       if (assignDateTo && date > assignDateTo) return false;
