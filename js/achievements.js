@@ -226,7 +226,10 @@ function renderLeaderboard(containerId) {
 
   let leaderboard = [];
   
+  // 1. Добавляем пользователей, кроме админа
   usersDB.forEach(user => {
+    if (user.email === 'admin' || user.email === 'admin@edu.ru' || user.role === 'Администратор') return;
+
     const xpInfo = xpData[user.email] || { xp: 0, level: 1 };
     leaderboard.push({
       fio: user.fio || 'Без имени',
@@ -238,12 +241,14 @@ function renderLeaderboard(containerId) {
     });
   });
 
+  // 2. Добавляем тех, у кого есть XP, но кого нет в usersDB (тоже кроме админа)
   Object.keys(xpData).forEach(email => {
+    if (email === 'admin' || email === 'admin@edu.ru') return;
+
     if (!leaderboard.some(u => u.email === email)) {
       const xpInfo = xpData[email];
       let fio = email;
       if (currentUser && currentUser.email === email) fio = currentUser.fio;
-      else if (email === 'admin') fio = 'Администратор';
       
       leaderboard.push({
         fio: fio,
@@ -256,11 +261,13 @@ function renderLeaderboard(containerId) {
     }
   });
 
+  // 3. Сортируем: сначала по уровню, потом по XP
   leaderboard.sort((a, b) => {
     if (b.level !== a.level) return b.level - a.level;
     return b.xp - a.xp;
   });
 
+  // 4. Берем топ-10
   const topUsers = leaderboard.slice(0, 10);
 
   if (topUsers.length === 0) {
@@ -268,6 +275,7 @@ function renderLeaderboard(containerId) {
     return;
   }
 
+  // 5. Рендерим HTML
   let html = '<div class="leaderboard-list">';
   
   topUsers.forEach((user, index) => {
