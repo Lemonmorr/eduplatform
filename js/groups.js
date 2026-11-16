@@ -873,11 +873,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Обработка перехода из каталога по ?open=id
+  const openGroupId = new URLSearchParams(window.location.search).get('open');
+  if (openGroupId && groups[openGroupId]) {
+    setTimeout(() => {
+      openGroupDetails(openGroupId);
+    }, 300);
+  }
+
   const joinParam = new URLSearchParams(window.location.search).get('join');
   if (joinParam && codeInput) {
     codeInput.value = joinParam.toUpperCase();
     setTimeout(() => codeInput.focus(), 200);
   }
+});
+
+window.addEventListener('dataSynced', () => {
+  loadGroups();
+  renderGroupsPage();
 });
 
 window.addEventListener('dataSynced', () => {

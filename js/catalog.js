@@ -10,27 +10,6 @@ let qrCurrentUrl = '';
 
 const debouncedRenderCatalog = debounce(() => renderCatalog(), 150);
 
-function getMyGroupLessonIds() {
-  const user = getCurrentUser();
-  if (!user) return [];
-  const groups = Storage.get('groups', {});
-  const ids = new Set();
-  Object.values(groups).forEach(g => {
-    const isMember  = Array.isArray(g.members) && g.members.some(m => m.email === user.email);
-    const isTeacher = g.teacherEmail && g.teacherEmail === user.email;
-    if (isMember || isTeacher) {
-      (g.lessonIds || []).forEach(id => {
-        if (id && typeof id === 'string') ids.add(id);
-      });
-    }
-  });
-  return Array.from(ids);
-}
-
-function isLessonInMyGroups(lessonId) {
-  return getMyGroupLessonIds().includes(lessonId);
-}
-
 function setCatalogTab(tab) {
   catalogTab = tab;
   document.getElementById('tab-all').classList.toggle('active', tab === 'all');
@@ -41,6 +20,7 @@ function setCatalogTab(tab) {
   const filtersPanel = document.getElementById('filters-panel');
   const subjectsBar = document.getElementById('subjects-bar');
   const tagsBar = document.getElementById('tags-bar');
+  
   if (tab === 'groups') {
     if (filtersPanel) filtersPanel.style.display = 'none';
     if (subjectsBar) subjectsBar.style.display = 'none';
@@ -196,7 +176,60 @@ function renderTagsBar(validKeys) {
   bar.innerHTML = html;
 }
 
+/* ---------- Отрисовка вкладки "Мои группы" ---------- */
+function renderGroupsTab() {
+  const container = document.getElementById('catalog-container');
+  if (!container) return;
+  
+  const user = getCurrentUser();
+  if (!user) {
+    container.innerHTML = `<p style="color:#94a3b8; text-align:center; padding:30px 0;">Войдите, чтобы просмотреть свои группы.</p>`;
+    return;
+  }
+
+  const allGroups = Storage.get('groups', {});
+  const myGroups = Object.values(allGroups).filter(g =>
+    g.teacherEmail === user.email || (g.members || []).some(m => m.email === user.email)
+  );
+
+  if (myGroups.length === 0) {
+    container.innerHTML = `<p style="color:#94a3b8; text-align:center; padding:30px 0;">У вас пока нет групп. Вступите в группу по коду на странице «Группы».</p>`;
+    return;
+  }
+
+  container.innerHTML = '<div class="catalog-groups-grid"></div>';
+  const grid = container.querySelector('.catalog-groups-grid');
+
+  myGroups.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+  myGroups.forEach(g => {
+    const lessonsCount = (g.lessonIds || []).length;
+    const membersCount = (g.members || []).length;
+    
+    const card = document.createElement('a');
+    card.className = 'catalog-group-card';
+    card.href = `groups.html?open=${encodeURIComponent(g.id)}`; // Переход на страницу групп с автооткрытием
+    card.innerHTML = `
+      <div class="cgc-header">
+        <div class="cgc-title">${escapeHtml(g.name)}</div>
+        <div class="cgc-badge">${lessonsCount} лекций</div>
+      </div>
+      <div class="cgc-desc">${escapeHtml(g.description || 'Без описания')}</div>
+      <div class="cgc-footer">
+        <span>👥 ${membersCount} учеников</span>
+        <span>👨‍🏫 ${escapeHtml(g.teacherName || 'Не указан')}</span>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
 function renderCatalog() {
+  if (catalogTab === 'groups') {
+    renderGroupsTab();
+    return;
+  }
+
   lessons = Storage.get('my_lessons', {});
   const searchInput = document.getElementById('search-input');
   const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -204,7 +237,6 @@ function renderCatalog() {
   const keys = Object.keys(lessons);
   const user = getCurrentUser();
   const isAdmin = user && user.role === 'Администратор';
-  const isGroupsTab = (catalogTab === 'groups');
 
   const validKeys = keys.filter(id => {
     const item = lessons[id];
@@ -241,12 +273,8 @@ function renderCatalog() {
     if (selectedSubjectValue !== subjectFilter) subjectFilter = selectedSubjectValue;
   }
 
-  // ВАЖНО: рендерим чипы ПОСЛЕ обновления subjectFilter,
-  // иначе бывает рассинхрон «чип активен, а в селекте «Все предметы»».
-  if (!isGroupsTab) {
-    renderSubjectsBar(validKeys);
-    renderTagsBar(validKeys);
-  }
+  renderSubjectsBar(validKeys);
+  renderTagsBar(validKeys);
 
   const activeFiltersCount = (dateFilter ? 1 : 0) + (authorFilter ? 1 : 0) + (subjectFilter ? 1 : 0) + (tagFilter ? 1 : 0);
   const badge = document.getElementById('filters-badge');
@@ -266,11 +294,16 @@ function renderCatalog() {
     else { favBadge.style.display = 'none'; }
   }
 
-  const groupLessonCount = getMyGroupLessonIds().length;
+  // Бейдж показывает количество ГРУПП, а не лекций
+  const allGroups = Storage.get('groups', {});
+  const groupsCount = Object.values(allGroups).filter(g => 
+    user && (g.teacherEmail === user.email || (g.members || []).some(m => m.email === user.email))
+  ).length;
+  
   const groupsBadge = document.getElementById('groups-tab-count');
   if (groupsBadge) {
-    if (groupLessonCount > 0) {
-      groupsBadge.textContent = groupLessonCount;
+    if (groupsCount > 0) {
+      groupsBadge.textContent = groupsCount;
       groupsBadge.style.display = 'inline-block';
     } else {
       groupsBadge.style.display = 'none';
@@ -279,8 +312,6 @@ function renderCatalog() {
 
   const filteredKeys = validKeys.filter(id => {
     const item = lessons[id];
-
-    if (isGroupsTab) return isLessonInMyGroups(id);
 
     if (searchQuery) {
       const hay = (
@@ -311,7 +342,6 @@ function renderCatalog() {
   if (filteredKeys.length === 0) {
     let emptyMsg = 'Публичных лекций не найдено.';
     if (catalogTab === 'fav') emptyMsg = 'В избранном пока ничего нет. Добавляйте лекции звёздочкой ★.';
-    else if (catalogTab === 'groups') emptyMsg = 'У вас пока нет лекций, назначенных группам. Вступите в группу по коду на странице «Группы».';
     else if (subjectFilter) emptyMsg = `По предмету «${escapeHtml(subjectFilter)}» ничего не найдено.`;
     else if (tagFilter) emptyMsg = `По тегу «#${escapeHtml(tagFilter)}» ничего не найдено.`;
     else if (searchQuery) emptyMsg = 'По вашему запросу ничего не найдено.';
