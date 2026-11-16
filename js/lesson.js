@@ -29,7 +29,11 @@ if (typeof sanitizeRichHtml !== 'function') {
 function computeScrollPercent() {
   const el = document.scrollingElement || document.documentElement;
   const scrollable = el.scrollHeight - el.clientHeight;
-  if (scrollable <= 0) return 0; 
+  
+  // Если страница не скроллится (контент помещается на экране целиком),
+  // считаем, что пользователь прочитал всё (100%)
+  if (scrollable <= 0) return 100; 
+  
   const pct = (el.scrollTop / scrollable) * 100;
   return Math.min(100, Math.max(0, Math.round(pct)));
 }
@@ -156,10 +160,7 @@ function initReadingProgress() {
   };
   updateProgressUI(maxScrollPercent);
 
-  blocks.forEach(b => {
-    const idx = parseInt(b.dataset.blockIndex, 10);
-    if (blocksSeen.has(idx)) b.classList.add('is-read');
-  });
+  // Визуальная пометка блоков убрана
 
   if (lastProgress && !resumeOffered) {
     resumeOffered = true;
@@ -192,7 +193,7 @@ function initReadingProgress() {
         const idx = parseInt(b.dataset.blockIndex, 10);
         if (!blocksSeen.has(idx)) {
           blocksSeen.add(idx);
-          b.classList.add('is-read');
+          // Визуальная пометка блока убрана
           changed = true;
         }
       }
@@ -325,7 +326,8 @@ function startFromScratch() {
   currentProgress = { read: [], total, scrollPercent: 0 };
   clearReadingProgress(lessonId, getUserKey());
   
-  lectureContentEl.querySelectorAll('.block-anchor').forEach(el => el.classList.remove('is-read'));
+  // Убрано удаление класса is-read
+  
   updateProgressUI(0);
   dismissResumePanel();
   
