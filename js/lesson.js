@@ -9,6 +9,7 @@ let ioObserver = null;
 let scrollHandler = null;
 let resizeObserver = null;
 let __xpAwardedForRead = false;
+let maxScrollPercent = 0; // ВЫНОСИМ НАВЕРХ, ЧТОБЫ СБРАСЫВАТЬ
 
 if (typeof looksLikeHtml !== 'function') {
   window.looksLikeHtml = function (str) {
@@ -38,6 +39,13 @@ function updateProgressUI(percent) {
   const pctEl = document.getElementById('progress-percent');
   if (fill) fill.style.width = percent + '%';
   if (pctEl) pctEl.textContent = percent + '%';
+
+  // ЕДИНАЯ МЕТКА В ШАПКЕ
+  const badge = document.getElementById('lecture-read-badge');
+  if (badge) {
+    if (percent >= 100) badge.style.display = 'inline-block';
+    else badge.style.display = 'none';
+  }
 }
 
 /* ---------- Рендер блоков + глоссарий ---------- */
@@ -53,12 +61,6 @@ function renderLessonContent(container, lesson) {
     wrap.className = 'block-anchor';
     wrap.id = 'block-' + idx;
     wrap.dataset.blockIndex = idx;
-
-    // ТА САМАЯ МЕТКА НА КАЖДОМ БЛОКЕ
-    const mark = document.createElement('span');
-    mark.className = 'block-read-mark';
-    mark.textContent = '✓ Прочитано';
-    wrap.appendChild(mark);
 
     if (block.type === 'text') {
       const div = document.createElement('div');
@@ -130,7 +132,7 @@ function initReadingProgress() {
   document.getElementById('progress-wrap').classList.add('visible');
   document.body.classList.add('has-progress');
 
-  let maxScrollPercent = 0;
+  maxScrollPercent = 0; // СБРОС ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
   const blocksSeen = new Set();
   let startTime = Date.now(); 
 
@@ -180,7 +182,7 @@ function initReadingProgress() {
   }
 
   function checkVisibleBlocks() {
-    // Убрал задержку в 3 секунды, чтобы полоска двигалась моментально
+    // Убрали задержку, полоска двигается моментально
     rafPending = false;
     const vh = window.innerHeight;
     let changed = false;
@@ -191,7 +193,7 @@ function initReadingProgress() {
         const idx = parseInt(b.dataset.blockIndex, 10);
         if (!blocksSeen.has(idx)) {
           blocksSeen.add(idx);
-          b.classList.add('is-read'); // Ставит метку на блок
+          b.classList.add('is-read');
           changed = true;
         }
       }
@@ -326,26 +328,31 @@ function restoreProgress() {
   if (window.__checkVisibleBlocks) setTimeout(window.__checkVisibleBlocks, 500);
 }
 
-// ЖЕСТКИЙ СБРОС: чистим базу, убираем хэш и ПЕРЕЗАГРУЖАЕМ страницу
+// ФИКС: Никаких перезагрузок. Просто обнуляем глобальную переменную и чистим базу.
 function startFromScratch() {
+  const lectureContentEl = document.getElementById('lecture-content');
   const lessonId = new URLSearchParams(window.location.search).get('id');
+  const total = lectureContentEl.querySelectorAll('.block-anchor').length;
   
-  // 1. Чистим встроенную функцию
+  // 1. Обнуляем глобальную переменную
+  maxScrollPercent = 0;
+  
+  // 2. Сбрасываем объект прогресса
+  currentProgress = { read: [], total, scrollPercent: 0 };
+  
+  // 3. Чистим базу
   clearReadingProgress(lessonId, getUserKey());
   
-  // 2. Жестко чистим localStorage
-  try {
-    const all = JSON.parse(localStorage.getItem('last_reading_progress') || '{}');
-    if (all[getUserKey()] && all[getUserKey()][lessonId]) {
-      delete all[getUserKey()][lessonId];
-      localStorage.setItem('last_reading_progress', JSON.stringify(all));
-    }
-  } catch(e) {}
-
-  // 3. Убираем якорь из URL и перезагружаем страницу с нуля
-  const cleanUrl = window.location.href.split('#')[0];
-  window.location.href = cleanUrl;
-  window.location.reload(); 
+  // 4. Убираем визуальные метки
+  lectureContentEl.querySelectorAll('.block-anchor').forEach(el => el.classList.remove('is-read'));
+  
+  // 5. Обновляем UI
+  updateProgressUI(0);
+  dismissResumePanel();
+  
+  // 6. Скроллим наверх
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('Начинаем с начала!');
 }
 
 function incrementViews(lessonId) {
@@ -818,7 +825,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let metaHtml = '';
   if (item.subject) metaHtml += `<span class="lesson-subject">${escapeHtml(item.subject)}</span>`;
   metaHtml += `<span class="lesson-views">👁 <b>${item.views || 0}</b> просмотров</span>`;
-  metaRow.innerHTML = metaHtml;
+  
+  // ВСТАВЛЯЕМ ЕДИНУЮ МЕТКУ В ШАПКУ
+  if (metaRow) {
+    metaRow.innerHTML = metaHtml + `<span id="lecture-read-badge" style="display: none; background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; margin-left: auto;">✓ Прочитано</span>`;
+  }
 
   updateFavButton(currentLessonId);
   document.getElementById('fav-btn').setAttribute('onclick', `toggleFavoriteFromLesson('${escapeHtml(currentLessonId)}')`);
