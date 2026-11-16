@@ -354,6 +354,75 @@ body { padding-top: 80px; padding-bottom: 30px; }
   border-radius: 8px;
 }
 
+/* ============================================================
+   ФИЛЬТРЫ В МОДАЛКЕ НАЗНАЧЕНИЯ ЛЕКЦИЙ
+   ============================================================ */
+.assign-filters-panel {
+  background: #0f172a;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.assign-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.assign-tab {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.assign-tab.active {
+  color: #818cf8;
+  border-bottom-color: #6366f1;
+}
+
+.assign-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 10px;
+  font-family: inherit;
+}
+.assign-search-input:focus { border-color: #6366f1; }
+
+.assign-tags-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.assign-tag-chip {
+  padding: 4px 10px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.assign-tag-chip:hover { background: rgba(99, 102, 241, 0.25); color: #c7d2fe; }
+.assign-tag-chip.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+
 /* Светлая тема */
 html.light-theme .btn-back { background: rgba(0,0,0,0.06); color: #475569; }
 html.light-theme .join-box { background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(139, 92, 246, 0.04) 100%); }
@@ -380,6 +449,14 @@ html.light-theme .clickable-student:hover { color: #4338ca; }
 html.light-theme .filter-bar { background: #f8fafc; }
 html.light-theme .filter-bar input[type="date"] { background: #fff; color: #0f172a; border-color: rgba(0,0,0,0.15); }
 html.light-theme .qr-url-text { background: rgba(99, 102, 241, 0.06); }
+html.light-theme .assign-filters-panel { background: #f8fafc; border-color: rgba(0,0,0,0.08); }
+html.light-theme .assign-tabs { border-bottom-color: rgba(0,0,0,0.08); }
+html.light-theme .assign-tab { color: #64748b; }
+html.light-theme .assign-tab.active { color: #4f46e5; }
+html.light-theme .assign-search-input { background: #fff; color: #0f172a; border-color: rgba(0,0,0,0.15); }
+html.light-theme .assign-tag-chip { background: rgba(99, 102, 241, 0.08); color: #4f46e5; border-color: rgba(99, 102, 241, 0.2); }
+html.light-theme .assign-tag-chip:hover { background: rgba(99, 102, 241, 0.15); }
+html.light-theme .assign-tag-chip.active { background: #6366f1; color: #fff; }
 
 /* ============================================================
    МОБИЛЬНАЯ АДАПТАЦИЯ
@@ -435,7 +512,8 @@ html.light-theme .qr-url-text { background: rgba(99, 102, 241, 0.06); }
   /* Модалки — почти на весь экран */
   .modal-content { padding: 20px 16px; max-height: 90vh; }
   .modal-content[style*="max-width: 800px"],
-  .modal-content[style*="max-width: 600px"] { max-width: 100% !important; }
+  .modal-content[style*="max-width: 600px"],
+  .modal-content[style*="max-width: 650px"] { max-width: 100% !important; }
 
   /* Инфо группы */
   .group-details-info {

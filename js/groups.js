@@ -8,6 +8,11 @@ let currentGroupTab = 'lessons';
 let tempAssignedLessons = [];
 let groupQrCurrentUrl = '';
 
+// Переменные для фильтрации в модалке назначения
+let assignSearchQuery = '';
+let assignOnlyMine = false;
+let assignActiveTags = new Set();
+
 let __lessonsCache = null;
 function getLessonsCached() {
   if (!__lessonsCache) __lessonsCache = Storage.get('my_lessons', {});
@@ -240,8 +245,6 @@ function joinGroupByCode() {
 
   saveGroups();
 
-  // Достижение first_group само начислит +15 XP через unlockAchievement.
-  // Не вызываем addXP(15) отдельно, чтобы не было двойного начисления.
   if (typeof Achievements !== 'undefined' && user.email) {
     Achievements.checkAchievements(user.email);
   }
@@ -613,6 +616,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+/* ============================================================
+   МОДАЛКА НАЗНАЧЕНИЯ ЛЕКЦИЙ (С ФИЛЬТРАМИ)
+   ============================================================ */
 function openAssignLessons(groupId) {
   const group = groups[groupId];
   if (!group) { showToast('Группа не найдена', true); return; }
@@ -620,32 +626,116 @@ function openAssignLessons(groupId) {
   currentGroupId = groupId;
   tempAssignedLessons = [...(group.lessonIds || [])];
 
+  // Сброс фильтров при открытии
+  assignSearchQuery = '';
+  assignOnlyMine = false;
+  assignActiveTags.clear();
+  
+  const searchInput = document.getElementById('assign-search-input');
+  if (searchInput) searchInput.value = '';
+  
+  setAssignTab('all');
+
+  openModal('assign-lessons-modal');
+  renderAssignLessonsList();
+}
+
+function setAssignTab(tab) {
+  assignOnlyMine = (tab === 'mine');
+  
+  document.getElementById('assign-tab-all').classList.toggle('active', !assignOnlyMine);
+  document.getElementById('assign-tab-mine').classList.toggle('active', assignOnlyMine);
+  
+  renderAssignLessonsList();
+}
+
+function onAssignSearch(val) {
+  assignSearchQuery = val;
+  renderAssignLessonsList();
+}
+
+function toggleAssignTag(tag) {
+  if (assignActiveTags.has(tag)) {
+    assignActiveTags.delete(tag);
+  } else {
+    assignActiveTags.add(tag);
+  }
+  renderAssignLessonsList();
+}
+
+function renderAssignLessonsList() {
+  const container = document.getElementById('assign-lessons-list');
+  const tagsBar = document.getElementById('assign-tags-bar');
+  if (!container || !tagsBar) return;
+
   const user = getCurrentUser();
   const allLessons = getLessonsCached();
+  let lessonsArr = Object.entries(allLessons).map(([id, lesson]) => ({ id, ...lesson }));
 
-  let availableLessons = Object.entries(allLessons).map(([id, lesson]) => ({ id, ...lesson }));
-
+  // 1. Фильтр свои / все доступные
   if (user && user.role !== 'Администратор') {
-    availableLessons = availableLessons.filter(l =>
-      l.authorEmail === user.email || l.author === user.fio
+    if (assignOnlyMine) {
+      lessonsArr = lessonsArr.filter(l =>
+        l.authorEmail === user.email || l.author === user.fio
+      );
+    } else {
+      lessonsArr = lessonsArr.filter(l => l.status !== 'rejected');
+    }
+  }
+
+  // Сбор актуальных тегов
+  const allTags = new Set();
+  lessonsArr.forEach(l => (l.tags || []).forEach(t => allTags.add(t)));
+  
+  // Чистим неактуальные теги
+  assignActiveTags.forEach(tag => {
+    if (!allTags.has(tag)) assignActiveTags.delete(tag);
+  });
+
+  // 2. Поиск
+  if (assignSearchQuery) {
+    const q = assignSearchQuery.toLowerCase().trim();
+    lessonsArr = lessonsArr.filter(l =>
+      (l.title || '').toLowerCase().includes(q) ||
+      (l.subject || '').toLowerCase().includes(q) ||
+      (l.tags || []).join(' ').toLowerCase().includes(q)
     );
   }
 
-  if (availableLessons.length === 0) {
-    document.getElementById('assign-lessons-list').innerHTML =
-      `<div class="modal-list-empty">У вас пока нет созданных лекций</div>`;
-    openModal('assign-lessons-modal');
+  // 3. Теги
+  if (assignActiveTags.size > 0) {
+    lessonsArr = lessonsArr.filter(l =>
+      Array.from(assignActiveTags).every(tag => (l.tags || []).includes(tag))
+    );
+  }
+
+  // Сортировка
+  lessonsArr.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+  // Рендер тегов
+  tagsBar.innerHTML = '';
+  if (allTags.size > 0) {
+    Array.from(allTags).sort().forEach(tag => {
+      const chip = document.createElement('span');
+      chip.className = `assign-tag-chip ${assignActiveTags.has(tag) ? 'active' : ''}`;
+      chip.textContent = `#${tag}`;
+      chip.onclick = () => toggleAssignTag(tag);
+      tagsBar.appendChild(chip);
+    });
+  }
+
+  // Рендер лекций
+  if (lessonsArr.length === 0) {
+    container.innerHTML = `<div class="modal-list-empty">Ничего не найдено по выбранным фильтрам</div>`;
     return;
   }
 
-  availableLessons.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-
   let html = '';
-  availableLessons.forEach(l => {
-    const checked = tempAssignedLessons.includes(l.id) ? 'checked' : '';
+  lessonsArr.forEach(l => {
+    const isChecked = tempAssignedLessons.includes(l.id);
     html += `
       <label class="assign-item" data-lesson-id="${escapeHtml(l.id)}">
-        <input type="checkbox" value="${escapeHtml(l.id)}" ${checked}>
+        <input type="checkbox" value="${escapeHtml(l.id)}" ${isChecked ? 'checked' : ''}>
         <span class="assign-item-label">
           ${escapeHtml(l.title)}
           ${l.subject ? `<span class="assign-item-subject">${escapeHtml(l.subject)}</span>` : ''}
@@ -654,13 +744,11 @@ function openAssignLessons(groupId) {
     `;
   });
 
-  const listEl = document.getElementById('assign-lessons-list');
-  listEl.innerHTML = html;
-  listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+  container.innerHTML = html;
+  
+  container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', function () { toggleAssignedLesson(this.value, this.checked); });
   });
-
-  openModal('assign-lessons-modal');
 }
 
 function toggleAssignedLesson(lessonId, checked) {

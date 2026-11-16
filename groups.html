@@ -95,12 +95,25 @@
     </div>
   </div>
 
-  <!-- Модалка: назначение лекций -->
+  <!-- Модалка: назначение лекций (С ФИЛЬТРАМИ) -->
   <div class="modal-overlay" id="assign-lessons-modal" role="dialog" aria-modal="true">
-    <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-content" style="max-width: 650px;">
       <h3 style="margin-bottom: 16px; font-weight: 700;">Назначить лекции группе</h3>
-      <div id="assign-lessons-list"></div>
-      <div class="modal-actions">
+      
+      <div class="assign-filters-panel">
+        <div class="assign-tabs">
+          <button type="button" class="assign-tab active" id="assign-tab-all" onclick="setAssignTab('all')">Все доступные</button>
+          <button type="button" class="assign-tab" id="assign-tab-mine" onclick="setAssignTab('mine')">Только мои</button>
+        </div>
+        
+        <input type="text" id="assign-search-input" class="assign-search-input" placeholder="Поиск по названию или предмету..." oninput="onAssignSearch(this.value)">
+        
+        <div class="assign-tags-bar" id="assign-tags-bar"></div>
+      </div>
+
+      <div id="assign-lessons-list" style="max-height: 350px; overflow-y: auto; margin-top: 12px; padding-right: 4px;"></div>
+      
+      <div class="modal-actions" style="margin-top: 16px;">
         <button class="btn btn-secondary" onclick="closeModal('assign-lessons-modal')">Отмена</button>
         <button class="btn btn-primary" onclick="saveAssignedLessons()">Сохранить</button>
       </div>
@@ -155,6 +168,6 @@
   <script src="js/progress.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/achievements.js"></script>
-  <script src="js/groups.js"></script>
+  <script src="js/groups.js?v=2"></script>
 </body>
 </html>
