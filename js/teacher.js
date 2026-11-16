@@ -29,9 +29,14 @@ function parseTags(str) {
 }
 
 /* ============================================================
-   АВТОСОХРАНЕНИЕ ЧЕРНОВИКА
+   АВТОСОХРАНЕНИЕ ЧЕРНОВИКА (ПЕРСОНАЛЬНО ДЛЯ КАЖДОГО)
    ============================================================ */
-const DRAFT_KEY = 'lesson_draft';
+// Динамический ключ, чтобы чужие черновики не всплывали
+function getDraftKey() {
+  const user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+  return user && user.email ? `lesson_draft_${user.email}` : 'lesson_draft_guest';
+}
+
 let __draftInitDone = false;
 let __draftTimer = null;
 
@@ -68,11 +73,11 @@ function saveDraft() {
     savedAt: new Date().toISOString(),
     editId: editId || null
   };
-  try { Storage.set(DRAFT_KEY, draft); } catch (e) {}
+  try { Storage.set(getDraftKey(), draft); } catch (e) {}
 }
 
 function clearDraft() {
-  Storage.remove(DRAFT_KEY);
+  Storage.remove(getDraftKey());
 }
 
 function scheduleDraftSave() {
@@ -81,7 +86,7 @@ function scheduleDraftSave() {
 }
 
 function restoreDraft() {
-  const draft = Storage.get(DRAFT_KEY, null);
+  const draft = Storage.get(getDraftKey(), null);
   if (!draft) return false;
 
   document.getElementById('lesson-title').value = draft.title || '';
@@ -112,7 +117,7 @@ function restoreDraft() {
 }
 
 function askRestoreDraft() {
-  const draft = Storage.get(DRAFT_KEY, null);
+  const draft = Storage.get(getDraftKey(), null);
   if (!draft) return;
   const when = new Date(draft.savedAt).toLocaleString('ru-RU');
   const modal = document.getElementById('draft-modal');
@@ -905,7 +910,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   __draftInitDone = true;
 
-  const draft = Storage.get(DRAFT_KEY, null);
+  const draft = Storage.get(getDraftKey(), null);
   const isRelevantDraft = draft &&
     (!editId || !draft.editId || draft.editId === editId) &&
     !titleEl.value.trim();
